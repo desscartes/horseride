@@ -40,4 +40,8 @@ npm run android:open
 - Risk profiline göre hazır kupon kartları
 - Mobil responsive web arayüzü
 
+## Model notu
+
+Canlı CSV adaptörü AGF alanını bilerek kullanmaz. Başlangıç skoru son form, en iyi derece, kilo, yarışa kalan gün ve start numarasından oluşur; bu henüz eğitilmiş bir makine öğrenmesi modeli değildir. Jokeyin geçmiş kazanma/başlama verisi mevcut ücretsiz CSV’de bulunmadığı için şu an skora dahil edilmez. Bir sonraki veri katmanı, izinli bir geçmiş sonuç kaynağıyla at ve jokey geçmişini toplamak, zaman bazlı backtest yapmak ve olasılıkları kalibre etmektir.
+
 Sonraki teknik adımlar: TJK veri erişim katmanı, geçmiş yarış veri modeli, model servisinin API olarak ayrıştırılması, oran kalibrasyonu ve kullanıcı kupon geçmişi.

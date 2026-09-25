@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "api": "node server/index.mjs",
+    "dev:api": "node server/index.mjs",
     "build": "vite build",
     "preview": "vite preview",
     "android:add": "cap add android",

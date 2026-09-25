@@ -11,18 +11,32 @@ export const coupons = [
   { name: 'Tekli Sprint', game: 'Ganyan', chance: 42, cost: '₺12', legs: '1. koşu', tag: 'Düşük risk' },
 ]
 
-const apiUrl = import.meta.env.VITE_RACE_API_URL
+const apiUrl = import.meta.env.VITE_RACE_API_URL || '/api/races'
+
+function normalizeLiveRaces(payload) {
+  return payload.races.map((race) => {
+    const favorite = race.horses[0]
+    return {
+      ...race,
+      distance: race.distance || race.conditions?.split(' · ')[2] || '',
+      favorites: race.horses.slice(0, 3).map((horse) => horse.name),
+      favorite: favorite?.name || 'Belirlenemedi',
+      confidence: Math.round(favorite?.probability || 0),
+      note: favorite ? `Bağımsız skor ${Math.round(favorite.independentScore * 100)}%. Son form, derece, kilo, dinlenme ve start faktörleriyle hesaplandı.` : 'Koşu için yeterli veri bulunamadı.',
+    }
+  })
+}
 
 export async function loadRaceProgram() {
-  if (!apiUrl) {
-    return { races: demoRaces, source: 'demo', message: 'Canlı API bağlı değil. Arayüz demo veriyle çalışıyor.' }
+  try {
+    const response = await fetch(apiUrl)
+    if (!response.ok) throw new Error(`Yarış servisi ${response.status} döndürdü.`)
+
+    const payload = await response.json()
+    if (!Array.isArray(payload.races)) throw new Error('Yarış servisi beklenen formatta veri döndürmedi.')
+
+    return { races: normalizeLiveRaces(payload), source: 'live', message: 'TJK CSV canlı verisi kullanılıyor. AGF modele dahil edilmedi; jokey geçmiş servisi henüz bağlanmadı.' }
+  } catch (error) {
+    return { races: demoRaces, source: 'demo', message: `Canlı veri alınamadı: ${error.message} Demo veri gösteriliyor.` }
   }
-
-  const response = await fetch(apiUrl)
-  if (!response.ok) throw new Error(`Yarış servisi ${response.status} döndürdü.`)
-
-  const payload = await response.json()
-  if (!Array.isArray(payload.races)) throw new Error('Yarış servisi beklenen formatta veri döndürmedi.')
-
-  return { races: payload.races, source: 'live', message: 'Canlı API verisi kullanılıyor.' }
 }
