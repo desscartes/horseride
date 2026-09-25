@@ -9,6 +9,13 @@ npm install
 npm run dev
 ```
 
+API canlı TJK CSV’sini alırken programı yerel SQLite veritabanına yazar. Veritabanı `data/horseride.sqlite` altında tutulur ve git’e gönderilmez. Durum kontrolü için:
+
+```bash
+curl http://localhost:8787/api/history/health
+curl "http://localhost:8787/api/history/horse?name=GOLDEN%20STARFIRE"
+```
+
 Canlı veri adaptörü için `.env.example` dosyasını `.env` olarak kopyalayıp JSON dönen bir endpoint tanımlayın:
 
 ```bash

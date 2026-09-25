@@ -1,5 +1,6 @@
 import { createServer } from 'node:http'
 import { URL } from 'node:url'
+import { databaseHealth, findHorseHistory, saveProgram } from './database.mjs'
 
 const port = Number(process.env.PORT || 8787)
 const defaultCity = process.env.TJK_CITY || 'Bursa'
@@ -116,6 +117,12 @@ function sendJson(response, status, data) {
 createServer(async (request, response) => {
   const requestUrl = new URL(request.url, `http://${request.headers.host}`)
   if (requestUrl.pathname === '/api/health') return sendJson(response, 200, { ok: true, service: 'horseride-data' })
+  if (requestUrl.pathname === '/api/history/horse') {
+    const name = requestUrl.searchParams.get('name')
+    if (!name) return sendJson(response, 400, { error: 'name parametresi gerekli.' })
+    return sendJson(response, 200, { name, entries: findHorseHistory(name) })
+  }
+  if (requestUrl.pathname === '/api/history/health') return sendJson(response, 200, databaseHealth())
   if (requestUrl.pathname !== '/api/races') return sendJson(response, 404, { error: 'Not found' })
 
   try {
@@ -124,7 +131,9 @@ createServer(async (request, response) => {
     const date = dateParam ? new Date(`${dateParam}T12:00:00`) : new Date()
     if (Number.isNaN(date.getTime())) return sendJson(response, 400, { error: 'Geçersiz tarih.' })
     const result = await fetchProgram(date, city)
-    return sendJson(response, 200, { source: 'tjk_csv', city, date: formatDate(date).iso, fetchedAt: new Date().toISOString(), providerUrl: result.url, races: result.races, agfUsed: false, jockeyHistoryUsed: false, model: 'HorseRide baseline v0.1' })
+    const fetchedAt = new Date().toISOString()
+    const stored = saveProgram({ city, date: formatDate(date).iso, fetchedAt, providerUrl: result.url, races: result.races })
+    return sendJson(response, 200, { source: 'tjk_csv', city, date: formatDate(date).iso, fetchedAt, providerUrl: result.url, races: result.races, agfUsed: false, jockeyHistoryUsed: false, stored, model: 'HorseRide baseline v0.1' })
   } catch (error) {
     return sendJson(response, 502, { error: error.message, source: 'tjk_csv' })
   }
