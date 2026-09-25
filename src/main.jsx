@@ -3,6 +3,8 @@ import { createRoot } from 'react-dom/client'
 import { coupons, demoRaces, loadRaceProgram } from './data/raceData'
 import './styles.css'
 
+const factorLabels = { form: 'Son form', time: 'Derece', weight: 'Kilo', recency: 'Dinlenme', gate: 'Start' }
+
 function App() {
   const [races, setRaces] = useState(demoRaces)
   const [selectedRace, setSelectedRace] = useState(0)
@@ -81,6 +83,7 @@ function App() {
             <div className="analysis-hero"><div className="horse-silhouette">♞</div><div><small>MODELİN ÖNE ÇIKARDIĞI</small><h3>{race.favorite}</h3><p>{race.note}</p></div><strong className="big-confidence">{race.confidence}%<small>kazanma<br />olasılığı</small></strong></div>
             <div className="probability"><div className="prob-head"><span>Olasılık dağılımı</span><small>Son form + derece + kilo · AGF hariç</small></div><div className="bar"><span style={{width: `${race.confidence}%`}} /></div><div className="prob-labels"><span><i className="dot green" /> {race.favorite} <b>{race.confidence}%</b></span><span><i className="dot orange" /> {race.favorites[1]} <b>{Math.max(9, race.confidence - 57)}%</b></span><span><i className="dot gray" /> Diğerleri <b>{Math.max(13, 100 - race.confidence - Math.max(9, race.confidence - 57))}%</b></span></div></div>
             <div className="horse-tags">{race.favorites.map((horse, i) => <span key={horse} className={i === 0 ? 'horse-tag preferred' : 'horse-tag'}><b>{i + 1}</b>{horse}</span>)}</div>
+            {race.factors && <div className="factor-grid"><div className="factor-heading"><span>Skorun dayanakları</span><small>AGF kullanılmadı</small></div>{Object.entries(race.factors).map(([key, value]) => <div className="factor-row" key={key}><span>{factorLabels[key]}</span><div className="factor-track"><i style={{ width: `${value * 100}%` }} /></div><b>{Math.round(value * 100)}</b></div>)}</div>}
             <button className="detail-button">Detaylı analizi aç <span>↗</span></button>
           </section>
         </div>

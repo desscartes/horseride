@@ -22,6 +22,7 @@ function normalizeLiveRaces(payload) {
       favorites: race.horses.slice(0, 3).map((horse) => horse.name),
       favorite: favorite?.name || 'Belirlenemedi',
       confidence: Math.round(favorite?.probability || 0),
+      factors: favorite?.factors || null,
       note: favorite ? `Bağımsız skor ${Math.round(favorite.independentScore * 100)}%. Son form, derece, kilo, dinlenme ve start faktörleriyle hesaplandı.` : 'Koşu için yeterli veri bulunamadı.',
     }
   })
