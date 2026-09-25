@@ -1,0 +1,8 @@
+{
+  "appId": "com.horseride.app",
+  "appName": "HorseRide",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  }
+}
