@@ -7,21 +7,24 @@ const factorLabels = { form: 'Son form', time: 'Derece', weight: 'Kilo', recency
 
 function App() {
   const [races, setRaces] = useState(demoRaces)
+  const [selectedCity, setSelectedCity] = useState('Bursa')
   const [selectedRace, setSelectedRace] = useState(0)
   const [activeDay, setActiveDay] = useState('Bugün')
   const [selectedCoupon, setSelectedCoupon] = useState(0)
-  const [dataState, setDataState] = useState({ source: 'demo', message: 'Canlı API bağlı değil. Arayüz demo veriyle çalışıyor.' })
+  const [dataState, setDataState] = useState({ city: 'Bursa', source: 'demo', message: 'Canlı API bağlı değil. Arayüz demo veriyle çalışıyor.' })
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [lastUpdated, setLastUpdated] = useState('12:42')
-  const race = races[selectedRace]
+  const race = races[selectedRace] || races[0]
   const coupon = coupons[selectedCoupon]
+  const analyzedCount = races.filter((item) => item.confidence > 0).length
+  const averageConfidence = races.length ? Math.round(races.reduce((total, item) => total + item.confidence, 0) / races.length) : 0
 
-  async function refreshProgram() {
+  async function refreshProgram(city = selectedCity) {
     setIsRefreshing(true)
     try {
-      const result = await loadRaceProgram()
+      const result = await loadRaceProgram(city)
       setRaces(result.races)
-      setDataState({ source: result.source, message: result.message })
+      setDataState({ city: result.city || selectedCity, source: result.source, message: result.message })
       setSelectedRace(0)
       setLastUpdated(new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }))
     } catch (error) {
@@ -29,6 +32,12 @@ function App() {
     } finally {
       setIsRefreshing(false)
     }
+  }
+
+  function changeCity(event) {
+    const city = event.target.value
+    setSelectedCity(city)
+    window.setTimeout(() => refreshProgram(city), 0)
   }
 
   useEffect(() => { refreshProgram() }, [])
@@ -52,29 +61,30 @@ function App() {
       <main className="main-content">
         <header className="topbar">
           <div className="mobile-brand"><span className="brand-mark">H</span> HorseRide</div>
-          <div className="location"><span className="pin">⌖</span><div><small>AKTİF PROGRAM</small><strong>İstanbul · 25 Eylül 2026</strong></div></div>
+          <div className="location"><span className="pin">⌖</span><div><small>AKTİF PROGRAM</small><strong>{dataState.city} · 25 Eylül 2026</strong></div></div>
           <div className={`data-state ${dataState.source}`}><span className="data-state-dot" /><div><strong>{dataState.source === 'live' ? 'Canlı veri' : dataState.source === 'error' ? 'Veri hatası' : 'Demo veri'}</strong><small>{lastUpdated} güncellendi</small></div></div>
           <div className="header-actions"><button className="icon-button" title="Bildirimler">♢<i /></button><button className="profile">CA</button></div>
         </header>
 
         <section className="intro-row">
           <div><p className="eyebrow">YARIŞ GÜNÜ / CUMA</p><h1>Bugünün yarış zekası</h1><p className="subhead">Veriyi oku, tempoyu gör, kuponunu bilinçle kur.</p></div>
+          <label className="city-picker"><span>HİPODROM</span><select value={selectedCity} onChange={changeCity}><option>Bursa</option><option>İstanbul</option><option>Ankara</option><option>İzmir</option><option>Adana</option></select></label>
           <button className="refresh-button" onClick={refreshProgram} disabled={isRefreshing}>{isRefreshing ? '…' : '↻'} <span>{isRefreshing ? 'Yükleniyor' : 'Verileri yenile'}</span></button>
         </section>
 
         <div className="day-tabs">{['Dün', 'Bugün', 'Yarın'].map(day => <button key={day} className={activeDay === day ? 'day-tab active' : 'day-tab'} onClick={() => setActiveDay(day)}>{day}<small>{day === 'Dün' ? '24 Eyl' : day === 'Bugün' ? '25 Eyl' : '26 Eyl'}</small></button>)}</div>
 
         <section className="stats-strip">
-          <div><span>Toplam koşu</span><strong>8</strong><small>programda</small></div>
-          <div><span>Analiz tamamlandı</span><strong>4<span className="muted">/8</span></strong><small>koşu</small></div>
-          <div><span>Ortalama güven</span><strong className="green-text">68%</strong><small>model skoru</small></div>
+          <div><span>Toplam koşu</span><strong>{races.length}</strong><small>programda</small></div>
+          <div><span>Analiz tamamlandı</span><strong>{analyzedCount}<span className="muted">/{races.length}</span></strong><small>koşu</small></div>
+          <div><span>Ortalama güven</span><strong className="green-text">{averageConfidence}%</strong><small>model skoru</small></div>
           <div className="track-note"><span>Bugünün notu</span><strong>Sentetik pistte tempo yüksek.</strong><small>· Model bunu hesaba kattı</small></div>
         </section>
 
         <div className="content-grid">
           <section className="panel races-panel">
-            <div className="panel-heading"><div><p className="eyebrow">PROGRAM</p><h2>İstanbul koşuları</h2></div><span className={`live-badge ${dataState.source}`}><i /> {dataState.source === 'live' ? 'CANLI API' : 'DEMO PROGRAM'}</span></div>
-            <div className="race-list">{races.map((item, index) => <button key={item.no} onClick={() => setSelectedRace(index)} className={selectedRace === index ? 'race-row selected' : 'race-row'}><span className="race-number">{String(item.no).padStart(2, '0')}</span><span className="race-time">{item.time}</span><span className="race-info"><strong>{item.type}</strong><small>{item.distance} ·  {item.favorites.length + 7} at</small></span><span className="race-favorite"><small>MODEL FAVORİSİ</small><strong>{item.favorite}</strong></span><span className="confidence"><b>{item.confidence}%</b><small>güven</small></span><span className="chevron">›</span></button>)}</div>
+            <div className="panel-heading"><div><p className="eyebrow">PROGRAM</p><h2>{dataState.city} koşuları</h2></div><span className={`live-badge ${dataState.source}`}><i /> {dataState.source === 'live' ? 'CANLI API' : 'DEMO PROGRAM'}</span></div>
+            <div className="race-list">{races.map((item, index) => <button key={item.no} onClick={() => setSelectedRace(index)} className={selectedRace === index ? 'race-row selected' : 'race-row'}><span className="race-number">{String(item.no).padStart(2, '0')}</span><span className="race-time">{item.time}</span><span className="race-info"><strong>{item.type}</strong><small>{item.distance} ·  {item.horseCount || item.favorites.length + 7} at</small></span><span className="race-favorite"><small>MODEL FAVORİSİ</small><strong>{item.favorite}</strong></span><span className="confidence"><b>{item.confidence}%</b><small>güven</small></span><span className="chevron">›</span></button>)}</div>
             <button className="all-races">Tüm koşu programını gör <span>→</span></button>
           </section>
 

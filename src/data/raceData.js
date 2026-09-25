@@ -20,6 +20,7 @@ function normalizeLiveRaces(payload) {
       ...race,
       distance: race.distance || race.conditions?.split(' · ')[2] || '',
       favorites: race.horses.slice(0, 3).map((horse) => horse.name),
+      horseCount: race.horses.length,
       favorite: favorite?.name || 'Belirlenemedi',
       confidence: Math.round(favorite?.probability || 0),
       factors: favorite?.factors || null,
@@ -28,16 +29,18 @@ function normalizeLiveRaces(payload) {
   })
 }
 
-export async function loadRaceProgram() {
+export async function loadRaceProgram(city = 'Bursa') {
   try {
-    const response = await fetch(apiUrl)
+    const url = new URL(apiUrl, window.location.origin)
+    url.searchParams.set('city', city)
+    const response = await fetch(url)
     if (!response.ok) throw new Error(`Yarış servisi ${response.status} döndürdü.`)
 
     const payload = await response.json()
     if (!Array.isArray(payload.races)) throw new Error('Yarış servisi beklenen formatta veri döndürmedi.')
 
-    return { races: normalizeLiveRaces(payload), source: 'live', message: 'TJK CSV canlı verisi kullanılıyor. AGF modele dahil edilmedi; jokey geçmiş servisi henüz bağlanmadı.' }
+    return { races: normalizeLiveRaces(payload), city: payload.city || city, source: 'live', message: 'TJK CSV canlı verisi kullanılıyor. AGF modele dahil edilmedi; jokey geçmiş servisi henüz bağlanmadı.' }
   } catch (error) {
-    return { races: demoRaces, source: 'demo', message: `Canlı veri alınamadı: ${error.message} Demo veri gösteriliyor.` }
+    return { races: demoRaces, city, source: 'demo', message: `Canlı veri alınamadı: ${error.message} Demo veri gösteriliyor.` }
   }
 }
