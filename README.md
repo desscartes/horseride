@@ -9,6 +9,14 @@ npm install
 npm run dev
 ```
 
+Canlı veri adaptörü için `.env.example` dosyasını `.env` olarak kopyalayıp JSON dönen bir endpoint tanımlayın:
+
+```bash
+VITE_RACE_API_URL=https://api.example.com/races/today
+```
+
+Endpoint şu formatı döndürmelidir: `{ "races": [ ... ] }`. TJK erişimi ve veri kullanım izni doğrulanmadan doğrudan scraping yapılmaz; sağlayıcı katmanı bu nedenle arayüzden ayrı tutulmuştur.
+
 Üretim kontrolü:
 
 ```bash
