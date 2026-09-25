@@ -68,7 +68,7 @@ function App() {
 
         <section className="intro-row">
           <div><p className="eyebrow">YARIŞ GÜNÜ / CUMA</p><h1>Bugünün yarış zekası</h1><p className="subhead">Veriyi oku, tempoyu gör, kuponunu bilinçle kur.</p></div>
-          <label className="city-picker"><span>HİPODROM</span><select value={selectedCity} onChange={changeCity}><option>Bursa</option><option>İstanbul</option><option>Ankara</option><option>İzmir</option><option>Adana</option></select></label>
+          <div className="context-pickers"><label className="city-picker"><span>HİPODROM</span><select value={selectedCity} onChange={changeCity}><option>Bursa</option><option>İstanbul</option><option>Ankara</option><option>İzmir</option><option>Adana</option></select></label><label className="race-picker"><span>KOŞUYA GİT</span><select value={selectedRace} onChange={(event) => setSelectedRace(Number(event.target.value))}>{races.map((item, index) => <option value={index} key={item.no}>{item.no}. koşu · {item.time}</option>)}</select></label></div>
           <button className="refresh-button" onClick={refreshProgram} disabled={isRefreshing}>{isRefreshing ? '…' : '↻'} <span>{isRefreshing ? 'Yükleniyor' : 'Verileri yenile'}</span></button>
         </section>
 
@@ -83,7 +83,7 @@ function App() {
 
         <div className="content-grid">
           <section className="panel races-panel">
-            <div className="panel-heading"><div><p className="eyebrow">PROGRAM</p><h2>{dataState.city} koşuları</h2></div><span className={`live-badge ${dataState.source}`}><i /> {dataState.source === 'live' ? 'CANLI API' : 'DEMO PROGRAM'}</span></div>
+            <div className="panel-heading"><div><p className="eyebrow">PROGRAM</p><h2>{dataState.city} koşuları</h2></div><div className="panel-heading-meta"><span className="race-count">{String(selectedRace + 1).padStart(2, '0')} / {String(races.length).padStart(2, '0')}</span><span className={`live-badge ${dataState.source}`}><i /> {dataState.source === 'live' ? 'CANLI API' : 'DEMO PROGRAM'}</span></div></div>
             <div className="race-list">{races.map((item, index) => <button key={item.no} onClick={() => setSelectedRace(index)} className={selectedRace === index ? 'race-row selected' : 'race-row'}><span className="race-number">{String(item.no).padStart(2, '0')}</span><span className="race-time">{item.time}</span><span className="race-info"><strong>{item.type}</strong><small>{item.distance} ·  {item.horseCount || item.favorites.length + 7} at</small></span><span className="race-favorite"><small>MODEL FAVORİSİ</small><strong>{item.favorite}</strong></span><span className="confidence"><b>{item.confidence}%</b><small>güven</small></span><span className="chevron">›</span></button>)}</div>
             <button className="all-races">Tüm koşu programını gör <span>→</span></button>
           </section>
