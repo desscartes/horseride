@@ -13,12 +13,20 @@ export const coupons = [
 
 const apiUrl = import.meta.env.VITE_RACE_API_URL || '/api/races'
 
+function buildApiUrl(pathname) {
+  const url = new URL(apiUrl, window.location.origin)
+  url.pathname = pathname
+  url.search = ''
+  return url
+}
+
 function normalizeLiveRaces(payload) {
   return payload.races.map((race) => {
     const favorite = race.horses[0]
     return {
       ...race,
       distance: race.distance || race.conditions?.split(' · ')[2] || '',
+      horses: race.horses.map((horse, index) => ({ ...horse, rank: index + 1 })),
       favorites: race.horses.slice(0, 3).map((horse) => horse.name),
       horseCount: race.horses.length,
       favorite: favorite?.name || 'Belirlenemedi',
@@ -31,7 +39,7 @@ function normalizeLiveRaces(payload) {
 
 export async function loadRaceProgram(city = 'Bursa') {
   try {
-    const url = new URL(apiUrl, window.location.origin)
+    const url = buildApiUrl('/api/races')
     url.searchParams.set('city', city)
     const response = await fetch(url)
     if (!response.ok) throw new Error(`Yarış servisi ${response.status} döndürdü.`)
@@ -43,4 +51,17 @@ export async function loadRaceProgram(city = 'Bursa') {
   } catch (error) {
     return { races: demoRaces, city, source: 'demo', message: `Canlı veri alınamadı: ${error.message} Demo veri gösteriliyor.` }
   }
+}
+
+export async function loadHorseHistory(name) {
+  const url = buildApiUrl('/api/history/horse')
+  url.searchParams.set('name', name)
+
+  const response = await fetch(url)
+  if (!response.ok) throw new Error(`Geçmiş servis ${response.status} döndürdü.`)
+
+  const payload = await response.json()
+  if (!Array.isArray(payload.entries)) throw new Error('Geçmiş servis beklenen formatta veri döndürmedi.')
+
+  return { name: payload.name || name, entries: payload.entries }
 }
