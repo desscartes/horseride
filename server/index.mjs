@@ -1,6 +1,6 @@
 import { createServer } from 'node:http'
 import { URL } from 'node:url'
-import { databaseHealth, findHorseHistory, saveProgram } from './database.mjs'
+import { databaseHealth, findHorseHistory, listRecentAnalyses, saveProgram } from './database.mjs'
 
 const port = Number(process.env.PORT || 8787)
 const defaultCity = process.env.TJK_CITY || 'Bursa'
@@ -122,6 +122,7 @@ createServer(async (request, response) => {
     if (!name) return sendJson(response, 400, { error: 'name parametresi gerekli.' })
     return sendJson(response, 200, { name, entries: findHorseHistory(name) })
   }
+  if (requestUrl.pathname === '/api/history/races') return sendJson(response, 200, { analyses: listRecentAnalyses() })
   if (requestUrl.pathname === '/api/history/health') return sendJson(response, 200, databaseHealth())
   if (requestUrl.pathname !== '/api/races') return sendJson(response, 404, { error: 'Not found' })
 

@@ -59,6 +59,38 @@ const entryStatement = database.prepare(`
   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   ON CONFLICT(race_id, horse_id) DO UPDATE SET jockey=excluded.jockey, trainer=excluded.trainer, weight=excluded.weight, start_number=excluded.start_number, last_six=excluded.last_six, days_since_race=excluded.days_since_race, best_time_seconds=excluded.best_time_seconds, independent_score=excluded.independent_score, probability=excluded.probability
 `)
+const recentRacesStatement = database.prepare(`
+  SELECT
+    r.id,
+    r.date,
+    r.city,
+    r.race_no AS raceNo,
+    r.time,
+    r.type,
+    r.distance,
+    r.surface,
+    r.conditions,
+    r.fetched_at AS fetchedAt,
+    (SELECT h.name FROM race_entries e JOIN horses h ON h.id = e.horse_id WHERE e.race_id = r.id ORDER BY e.probability DESC, e.independent_score DESC LIMIT 1) AS favorite,
+    (SELECT e.probability FROM race_entries e WHERE e.race_id = r.id ORDER BY e.probability DESC, e.independent_score DESC LIMIT 1) AS confidence,
+    (SELECT COUNT(*) FROM race_entries e WHERE e.race_id = r.id) AS horseCount
+  FROM races r
+  ORDER BY r.date DESC, r.race_no DESC
+  LIMIT ?
+`)
+const raceTopHorsesStatement = database.prepare(`
+  SELECT
+    h.name,
+    e.probability,
+    e.independent_score AS independentScore,
+    e.jockey,
+    e.last_six AS lastSix
+  FROM race_entries e
+  JOIN horses h ON h.id = e.horse_id
+  WHERE e.race_id = ?
+  ORDER BY e.probability DESC, e.independent_score DESC
+  LIMIT 3
+`)
 
 function horseId(name) {
   return name.trim().toLocaleUpperCase('tr-TR').replace(/[^A-Z0-9ÇĞİÖŞÜ]+/gi, '-').replace(/^-|-$/g, '')
@@ -83,6 +115,14 @@ export function findHorseHistory(name) {
     FROM race_entries e JOIN horses h ON h.id = e.horse_id JOIN races r ON r.id = e.race_id
     WHERE h.name LIKE ? ORDER BY r.date DESC, r.race_no DESC LIMIT 50
   `).all(`%${name}%`)
+}
+
+export function listRecentAnalyses(limit = 12) {
+  return recentRacesStatement.all(limit).map((race) => ({
+    ...race,
+    confidence: Math.round(race.confidence || 0),
+    horses: raceTopHorsesStatement.all(race.id).map((horse, index) => ({ ...horse, rank: index + 1 })),
+  }))
 }
 
 export function databaseHealth() {

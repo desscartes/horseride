@@ -65,3 +65,14 @@ export async function loadHorseHistory(name) {
 
   return { name: payload.name || name, entries: payload.entries }
 }
+
+export async function loadRecentAnalyses() {
+  const url = buildApiUrl('/api/history/races')
+  const response = await fetch(url)
+  if (!response.ok) throw new Error(`Arşiv servis ${response.status} döndürdü.`)
+
+  const payload = await response.json()
+  if (!Array.isArray(payload.analyses)) throw new Error('Arşiv servis beklenen formatta veri döndürmedi.')
+
+  return payload.analyses
+}
