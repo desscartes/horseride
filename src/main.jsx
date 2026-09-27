@@ -4,6 +4,32 @@ import { coupons, demoRaces, loadHorseHistory, loadRaceProgram } from './data/ra
 import './styles.css'
 
 const factorLabels = { form: 'Son form', time: 'Derece', weight: 'Kilo', recency: 'Dinlenme', gate: 'Start' }
+function buildFallbackHorses(race) {
+  const baseConfidence = Math.max(12, Math.min(88, race.confidence || 0))
+  const secondProbability = Math.max(7, Math.round((100 - baseConfidence) * 0.52))
+  const thirdProbability = Math.max(5, Math.round((100 - baseConfidence - secondProbability) * 0.75))
+
+  return (race.favorites || []).map((name, index) => ({
+    name,
+    rank: index + 1,
+    probability: index === 0 ? baseConfidence : index === 1 ? secondProbability : thirdProbability,
+    independentScore: index === 0 ? baseConfidence / 100 : index === 1 ? Math.max(0.2, secondProbability / 100) : Math.max(0.16, thirdProbability / 100),
+    factors: index === 0 ? race.factors || null : null,
+    jockey: null,
+    weight: null,
+    lastSix: null,
+  }))
+}
+
+function horseAnalysisNote(horse, fallbackNote) {
+  if (!horse?.factors) return fallbackNote
+
+  const bestFactor = Object.entries(horse.factors).sort(([, left], [, right]) => right - left)[0]
+  if (!bestFactor) return fallbackNote
+
+  const [factorKey, factorValue] = bestFactor
+  return `${horse.name}, ${factorLabels[factorKey].toLocaleLowerCase('tr-TR')} tarafında %${Math.round(factorValue * 100)} ile öne çıkıyor. Bağımsız skor %${Math.round((horse.independentScore || 0) * 100)} seviyesinde.`
+}
 
 function App() {
   const [races, setRaces] = useState(demoRaces)
@@ -20,13 +46,16 @@ function App() {
   const coupon = coupons[selectedCoupon]
   const analyzedCount = races.filter((item) => item.confidence > 0).length
   const averageConfidence = races.length ? Math.round(races.reduce((total, item) => total + item.confidence, 0) / races.length) : 0
-  const availableHorses = useMemo(() => {
-    if (Array.isArray(race.horses) && race.horses.length) return race.horses.slice(0, 3)
-    return (race.favorites || []).slice(0, 3).map((name, index) => ({ name, rank: index + 1, probability: index === 0 ? race.confidence : null, factors: index === 0 ? race.factors : null }))
+  const raceHorses = useMemo(() => {
+    if (Array.isArray(race.horses) && race.horses.length) return race.horses
+    return buildFallbackHorses(race)
   }, [race])
-  const activeHorse = availableHorses[selectedHorseIndex] || availableHorses[0] || null
+  const visibleFavorites = raceHorses.slice(0, 3)
+  const activeHorse = raceHorses[selectedHorseIndex] || raceHorses[0] || null
   const recentHistory = historyState.entries.slice(0, 4)
   const averageHistoryProbability = recentHistory.length ? Math.round(recentHistory.reduce((sum, entry) => sum + (entry.probability || 0), 0) / recentHistory.length) : 0
+  const displayedConfidence = Math.round(activeHorse?.probability || race.confidence || 0)
+  const displayedNote = horseAnalysisNote(activeHorse, race.note)
 
   async function refreshProgram(city = selectedCity) {
     setIsRefreshing(true)
@@ -125,10 +154,22 @@ function App() {
 
           <section className="panel analysis-panel">
             <div className="panel-heading"><div><p className="eyebrow">YAPAY ZEKA ANALİZİ</p><h2>{race.no}. koşu detayı</h2></div><span className="analysis-icon">✦</span></div>
-            <div className="analysis-hero"><div className="horse-silhouette">♞</div><div><small>MODELİN ÖNE ÇIKARDIĞI</small><h3>{race.favorite}</h3><p>{race.note}</p></div><strong className="big-confidence">{race.confidence}%<small>kazanma<br />olasılığı</small></strong></div>
-            <div className="probability"><div className="prob-head"><span>Olasılık dağılımı</span><small>Son form + derece + kilo · AGF hariç</small></div><div className="bar"><span style={{width: `${race.confidence}%`}} /></div><div className="prob-labels"><span><i className="dot green" /> {race.favorite} <b>{race.confidence}%</b></span><span><i className="dot orange" /> {race.favorites[1]} <b>{Math.max(9, race.confidence - 57)}%</b></span><span><i className="dot gray" /> Diğerleri <b>{Math.max(13, 100 - race.confidence - Math.max(9, race.confidence - 57))}%</b></span></div></div>
-            <div className="horse-tags">{availableHorses.map((horse, i) => <button type="button" key={horse.name} onClick={() => setSelectedHorseIndex(i)} className={selectedHorseIndex === i ? 'horse-tag preferred' : 'horse-tag'}><b>{horse.rank || i + 1}</b>{horse.name}</button>)}</div>
-            {race.factors && <div className="factor-grid"><div className="factor-heading"><span>Skorun dayanakları</span><small>AGF kullanılmadı</small></div>{Object.entries(race.factors).map(([key, value]) => <div className="factor-row" key={key}><span>{factorLabels[key]}</span><div className="factor-track"><i style={{ width: `${value * 100}%` }} /></div><b>{Math.round(value * 100)}</b></div>)}</div>}
+            <div className="analysis-hero"><div className="horse-silhouette">♞</div><div><small>SEÇİLİ AT</small><h3>{activeHorse?.name || race.favorite}</h3><p>{displayedNote}</p></div><strong className="big-confidence">{displayedConfidence}%<small>kazanma<br />olasılığı</small></strong></div>
+            <div className="probability"><div className="prob-head"><span>Olasılık dağılımı</span><small>Son form + derece + kilo · AGF hariç</small></div><div className="bar"><span style={{width: `${displayedConfidence}%`}} /></div><div className="prob-labels">{visibleFavorites.map((horse, index) => <span key={horse.name}><i className={`dot ${index === 0 ? 'green' : index === 1 ? 'orange' : 'gray'}`} /> {horse.name} <b>%{Math.round(horse.probability || 0)}</b></span>)}<span><i className="dot gray" /> Diğerleri <b>%{Math.max(0, 100 - visibleFavorites.reduce((total, horse) => total + Math.round(horse.probability || 0), 0))}</b></span></div></div>
+            <div className="horse-tags">{visibleFavorites.map((horse, i) => <button type="button" key={horse.name} onClick={() => setSelectedHorseIndex(i)} className={selectedHorseIndex === i ? 'horse-tag preferred' : 'horse-tag'}><b>{horse.rank || i + 1}</b>{horse.name}</button>)}</div>
+            {activeHorse?.factors && <div className="factor-grid"><div className="factor-heading"><span>Skorun dayanakları</span><small>AGF kullanılmadı</small></div>{Object.entries(activeHorse.factors).map(([key, value]) => <div className="factor-row" key={key}><span>{factorLabels[key]}</span><div className="factor-track"><i style={{ width: `${value * 100}%` }} /></div><b>{Math.round(value * 100)}</b></div>)}</div>}
+            <div className="field-card">
+              <div className="field-card-head">
+                <div>
+                  <small>KOŞU SAHASI</small>
+                  <h3>Tüm atlar ve skorları</h3>
+                </div>
+                <span>{raceHorses.length} at</span>
+              </div>
+              <div className="field-list">
+                {raceHorses.map((horse, index) => <button type="button" key={`${horse.name}-${index}`} onClick={() => setSelectedHorseIndex(index)} className={selectedHorseIndex === index ? 'field-row selected' : 'field-row'}><div className="field-rank"><b>{horse.rank || index + 1}</b><small>sıra</small></div><div className="field-main"><strong>{horse.name}</strong><small>{horse.jockey || 'Jokey bilgisi yok'} · {horse.lastSix || 'Form verisi yok'}</small></div><div className="field-meta"><span>Skor <b>%{Math.round((horse.independentScore || 0) * 100)}</b></span><span>Olasılık <b>%{Math.round(horse.probability || 0)}</b></span></div></button>)}
+              </div>
+            </div>
             <div className="history-card">
               <div className="history-card-head">
                 <div>
