@@ -37,10 +37,11 @@ function normalizeLiveRaces(payload) {
   })
 }
 
-export async function loadRaceProgram(city = 'Bursa') {
+export async function loadRaceProgram(city = 'Bursa', date = null) {
   try {
     const url = buildApiUrl('/api/races')
     url.searchParams.set('city', city)
+    if (date) url.searchParams.set('date', date)
     const response = await fetch(url)
     if (!response.ok) throw new Error(`Yarış servisi ${response.status} döndürdü.`)
 

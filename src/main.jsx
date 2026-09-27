@@ -4,6 +4,28 @@ import { coupons, demoRaces, loadHorseHistory, loadRaceProgram, loadRecentAnalys
 import './styles.css'
 
 const factorLabels = { form: 'Son form', time: 'Derece', weight: 'Kilo', recency: 'Dinlenme', gate: 'Start' }
+
+function addDays(date, days) {
+  const nextDate = new Date(date)
+  nextDate.setDate(nextDate.getDate() + days)
+  return nextDate
+}
+
+function formatApiDate(date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function formatShortDate(date) {
+  return new Intl.DateTimeFormat('tr-TR', { day: '2-digit', month: 'short' }).format(date)
+}
+
+function formatLongDate(date) {
+  return new Intl.DateTimeFormat('tr-TR', { day: '2-digit', month: 'long', year: 'numeric' }).format(date)
+}
+
 function buildFallbackHorses(race) {
   const baseConfidence = Math.max(12, Math.min(88, race.confidence || 0))
   const secondProbability = Math.max(7, Math.round((100 - baseConfidence) * 0.52))
@@ -36,7 +58,7 @@ function App() {
   const [races, setRaces] = useState(demoRaces)
   const [selectedCity, setSelectedCity] = useState('Bursa')
   const [selectedRace, setSelectedRace] = useState(0)
-  const [activeDay, setActiveDay] = useState('Bugün')
+  const [selectedDayOffset, setSelectedDayOffset] = useState(0)
   const [selectedCoupon, setSelectedCoupon] = useState(0)
   const [selectedHorseIndex, setSelectedHorseIndex] = useState(0)
   const [dataState, setDataState] = useState({ city: 'Bursa', source: 'demo', message: 'Canlı API bağlı değil. Arayüz demo veriyle çalışıyor.' })
@@ -62,11 +84,21 @@ function App() {
   const displayedNote = horseAnalysisNote(activeHorse, race.note)
   const selectedArchive = archiveState.analyses[selectedArchiveIndex] || archiveState.analyses[0] || null
   const archiveCities = new Set(archiveState.analyses.map((item) => item.city)).size
+  const dayOptions = useMemo(() => {
+    const today = new Date()
+    return [
+      { label: 'Dün', offset: -1, date: addDays(today, -1) },
+      { label: 'Bugün', offset: 0, date: today },
+      { label: 'Yarın', offset: 1, date: addDays(today, 1) },
+    ].map((item) => ({ ...item, apiDate: formatApiDate(item.date), shortDate: formatShortDate(item.date), longDate: formatLongDate(item.date) }))
+  }, [])
+  const selectedDay = dayOptions.find((item) => item.offset === selectedDayOffset) || dayOptions[1]
 
-  async function refreshProgram(city = selectedCity) {
+  async function refreshProgram(city = selectedCity, dayOffset = selectedDayOffset) {
+    const nextDay = dayOptions.find((item) => item.offset === dayOffset) || dayOptions[1]
     setIsRefreshing(true)
     try {
-      const result = await loadRaceProgram(city)
+      const result = await loadRaceProgram(city, nextDay.apiDate)
       setRaces(result.races)
       setDataState({ city: result.city || selectedCity, source: result.source, message: result.message })
       setSelectedRace(0)
@@ -95,10 +127,10 @@ function App() {
   function changeCity(event) {
     const city = event.target.value
     setSelectedCity(city)
-    window.setTimeout(() => refreshProgram(city), 0)
+    window.setTimeout(() => refreshProgram(city, selectedDayOffset), 0)
   }
 
-  useEffect(() => { refreshProgram() }, [])
+  useEffect(() => { refreshProgram(selectedCity, selectedDayOffset) }, [])
   useEffect(() => { setSelectedHorseIndex(0) }, [selectedRace, races])
   useEffect(() => {
     if (activeView === 'history' && archiveState.status === 'idle') refreshArchive()
@@ -148,19 +180,19 @@ function App() {
       <main className="main-content">
         <header className="topbar">
           <div className="mobile-brand"><span className="brand-mark">H</span> HorseRide</div>
-          <div className="location"><span className="pin">⌖</span><div><small>{activeView === 'history' ? 'ARŞİV MODU' : 'AKTİF PROGRAM'}</small><strong>{activeView === 'history' ? 'Geçmiş analiz arşivi' : `${dataState.city} · 25 Eylül 2026`}</strong></div></div>
+          <div className="location"><span className="pin">⌖</span><div><small>{activeView === 'history' ? 'ARŞİV MODU' : 'AKTİF PROGRAM'}</small><strong>{activeView === 'history' ? 'Geçmiş analiz arşivi' : `${dataState.city} · ${selectedDay.longDate}`}</strong></div></div>
           <div className={`data-state ${activeView === 'history' ? 'live' : dataState.source}`}><span className="data-state-dot" /><div><strong>{activeView === 'history' ? 'Arşiv görünümü' : dataState.source === 'live' ? 'Canlı veri' : dataState.source === 'error' ? 'Veri hatası' : 'Demo veri'}</strong><small>{lastUpdated} güncellendi</small></div></div>
           <div className="header-actions"><button className="icon-button" title="Bildirimler">♢<i /></button><button className="profile">CA</button></div>
         </header>
 
         <section className="intro-row">
-          <div><p className="eyebrow">{activeView === 'history' ? 'ARŞİV / YEREL VERİTABANI' : 'YARIŞ GÜNÜ / CUMA'}</p><h1>{activeView === 'history' ? 'Geçmiş analizler' : 'Bugünün yarış zekası'}</h1><p className="subhead">{activeView === 'history' ? 'Kaydedilen yarışları, model favorilerini ve öne çıkan atları geriye dönük izle.' : 'Veriyi oku, tempoyu gör, kuponunu bilinçle kur.'}</p></div>
+          <div><p className="eyebrow">{activeView === 'history' ? 'ARŞİV / YEREL VERİTABANI' : `YARIŞ GÜNÜ / ${selectedDay.label.toLocaleUpperCase('tr-TR')}`}</p><h1>{activeView === 'history' ? 'Geçmiş analizler' : 'Yarış zekası'}</h1><p className="subhead">{activeView === 'history' ? 'Kaydedilen yarışları, model favorilerini ve öne çıkan atları geriye dönük izle.' : 'Veriyi oku, tempoyu gör, kuponunu bilinçle kur.'}</p></div>
           {activeView === 'history'
             ? <button className="refresh-button" onClick={refreshArchive} disabled={isRefreshingArchive}>{isRefreshingArchive ? '…' : '↻'} <span>{isRefreshingArchive ? 'Yükleniyor' : 'Arşivi yenile'}</span></button>
             : <><div className="context-pickers"><label className="city-picker"><span>HİPODROM</span><select value={selectedCity} onChange={changeCity}><option>Bursa</option><option>İstanbul</option><option>Ankara</option><option>İzmir</option><option>Adana</option></select></label><label className="race-picker"><span>KOŞUYA GİT</span><select value={selectedRace} onChange={(event) => setSelectedRace(Number(event.target.value))}>{races.map((item, index) => <option value={index} key={item.no}>{item.no}. koşu · {item.time}</option>)}</select></label></div><button className="refresh-button" onClick={refreshProgram} disabled={isRefreshing}>{isRefreshing ? '…' : '↻'} <span>{isRefreshing ? 'Yükleniyor' : 'Verileri yenile'}</span></button></>}
         </section>
 
-        <div className="day-tabs">{activeView === 'history' ? <><button className="day-tab active">Arşiv<small>Kaydedilen koşular</small></button><button className="day-tab" onClick={() => setActiveView('dashboard')}>Pano<small>Canlı görünüme dön</small></button></> : ['Dün', 'Bugün', 'Yarın'].map(day => <button key={day} className={activeDay === day ? 'day-tab active' : 'day-tab'} onClick={() => setActiveDay(day)}>{day}<small>{day === 'Dün' ? '24 Eyl' : day === 'Bugün' ? '25 Eyl' : '26 Eyl'}</small></button>)}</div>
+        <div className="day-tabs">{activeView === 'history' ? <><button className="day-tab active">Arşiv<small>Kaydedilen koşular</small></button><button className="day-tab" onClick={() => setActiveView('dashboard')}>Pano<small>Canlı görünüme dön</small></button></> : dayOptions.map((day) => <button key={day.offset} className={selectedDayOffset === day.offset ? 'day-tab active' : 'day-tab'} onClick={() => { setSelectedDayOffset(day.offset); refreshProgram(selectedCity, day.offset) }}>{day.label}<small>{day.shortDate}</small></button>)}</div>
 
         {activeView === 'history'
           ? <>
