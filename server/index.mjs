@@ -3,7 +3,10 @@ import { URL } from 'node:url'
 import { databaseHealth, findHorseHistory, listRecentAnalyses, saveProgram } from './database.mjs'
 
 const port = Number(process.env.PORT || 8787)
-const defaultCity = process.env.TJK_CITY || 'Bursa'
+const defaultCity = process.env.TJK_CITY || 'Tümü'
+const domesticProgramCities = (process.env.TJK_CITIES || 'İstanbul,Ankara,İzmir,Bursa,Adana,Kocaeli,Antalya,Diyarbakır,Elazığ,Şanlıurfa').split(',').map((value) => value.trim()).filter(Boolean)
+const foreignProgramCities = (process.env.TJK_FOREIGN_CITIES || 'Yurtdışı').split(',').map((value) => value.trim()).filter(Boolean)
+const allProgramCities = [...new Set([...domesticProgramCities, ...foreignProgramCities])]
 
 function formatDate(date) {
   const year = date.getFullYear()
@@ -22,6 +25,12 @@ function parseTime(value) {
   const match = String(value || '').match(/(\d+)[.:](\d+)[.:](\d+)/)
   if (!match) return null
   return Number(match[1]) * 60 + Number(match[2]) + Number(match[3]) / 100
+}
+
+function parseClock(value) {
+  const match = String(value || '').match(/(\d{1,2})\.(\d{2})/)
+  if (!match) return Number.MAX_SAFE_INTEGER
+  return Number(match[1]) * 60 + Number(match[2])
 }
 
 function formScore(form) {
@@ -109,6 +118,41 @@ async function fetchProgram(date, city) {
   return { url, races: parseCsv(text) }
 }
 
+async function fetchPrograms(date, citySelection) {
+  const wantsAll = ['Tümü', 'Tum', 'Hepsi', 'all'].includes(citySelection)
+  const cities = wantsAll ? allProgramCities : [citySelection]
+  const settled = await Promise.allSettled(cities.map(async (city) => {
+    const result = await fetchProgram(date, city)
+    return {
+      city,
+      providerUrl: result.url,
+      races: result.races
+        .filter((race) => race.horses?.length)
+        .map((race) => ({ ...race, city, track: city })),
+    }
+  }))
+
+  const successes = settled.filter((entry) => entry.status === 'fulfilled').map((entry) => entry.value)
+  const failures = settled
+    .map((entry, index) => entry.status === 'rejected' ? { city: cities[index], error: entry.reason?.message || 'fetch failed' } : null)
+    .filter(Boolean)
+
+  if (!successes.length) {
+    throw new Error(failures.map((item) => `${item.city}: ${item.error}`).slice(0, 4).join(' | '))
+  }
+
+  const races = successes
+    .flatMap((entry) => entry.races)
+    .sort((left, right) => parseClock(left.time) - parseClock(right.time) || left.city.localeCompare(right.city, 'tr') || left.no - right.no)
+
+  return {
+    city: wantsAll ? 'Tüm program' : citySelection,
+    providerUrls: successes.map((entry) => entry.providerUrl),
+    races,
+    failures,
+  }
+}
+
 function sendJson(response, status, data) {
   response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' })
   response.end(JSON.stringify(data))
@@ -131,10 +175,10 @@ createServer(async (request, response) => {
     const city = requestUrl.searchParams.get('city') || defaultCity
     const date = dateParam ? new Date(`${dateParam}T12:00:00`) : new Date()
     if (Number.isNaN(date.getTime())) return sendJson(response, 400, { error: 'Geçersiz tarih.' })
-    const result = await fetchProgram(date, city)
+    const result = await fetchPrograms(date, city)
     const fetchedAt = new Date().toISOString()
-    const stored = saveProgram({ city, date: formatDate(date).iso, fetchedAt, providerUrl: result.url, races: result.races })
-    return sendJson(response, 200, { source: 'tjk_csv', city, date: formatDate(date).iso, fetchedAt, providerUrl: result.url, races: result.races, agfUsed: false, jockeyHistoryUsed: false, stored, model: 'HorseRide baseline v0.1' })
+    const stored = saveProgram({ city: result.city, date: formatDate(date).iso, fetchedAt, providerUrl: result.providerUrls[0], races: result.races })
+    return sendJson(response, 200, { source: 'tjk_csv', city: result.city, date: formatDate(date).iso, fetchedAt, providerUrls: result.providerUrls, failures: result.failures, races: result.races, agfUsed: false, jockeyHistoryUsed: false, stored, model: 'HorseRide baseline v0.1' })
   } catch (error) {
     return sendJson(response, 502, { error: error.message, source: 'tjk_csv' })
   }
