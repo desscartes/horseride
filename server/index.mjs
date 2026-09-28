@@ -225,6 +225,7 @@ async function fetchProgram(date, city) {
       const parsed = parseCsv(text)
       if (!parsed.races.length) throw new Error('Program dosyasında koşu bulunamadı.')
       if (!parsed.horseHeaderSeen) throw new Error('Program dosyasında at tablosu bulunamadı.')
+      if (!parsed.meetingDate) throw new Error('Program dosyasında yarış tarihi doğrulanamadı.')
       if (parsed.meetingDate && parsed.meetingDate !== expectedDate) {
         throw new Error(`İstenen tarih ${expectedDate}, gelen dosya ${parsed.meetingDate}.`)
       }
@@ -290,6 +291,7 @@ async function fetchProgramsFromOfficialApi(date, citySelection) {
   if (!races.length) throw new Error('Resmi TJK API seçilen gün ve filtre için koşu döndürmedi.')
 
   return {
+    source: 'official_api',
     city: wantsAll ? 'Tüm program' : citySelection,
     providerUrls: ['official_tjk_api'],
     races: races.map((race) => ({ ...race, city: race.venue || citySelection, track: race.venue || citySelection })),
@@ -326,6 +328,7 @@ async function fetchProgramsFromCsv(date, citySelection) {
     .sort((left, right) => parseClock(left.time) - parseClock(right.time) || left.city.localeCompare(right.city, 'tr') || left.no - right.no)
 
   return {
+    source: 'tjk_csv',
     city: wantsAll ? 'Tüm program' : citySelection,
     providerUrls: successes.map((entry) => entry.providerUrl),
     races,
@@ -375,7 +378,7 @@ createServer(async (request, response) => {
     const result = await fetchPrograms(date, city)
     const fetchedAt = new Date().toISOString()
     const stored = saveProgram({ city: result.city, date: formatDate(date).iso, fetchedAt, providerUrl: result.providerUrls[0], races: result.races })
-    return sendJson(response, 200, { source: 'tjk_csv', city: result.city, date: formatDate(date).iso, fetchedAt, providerUrls: result.providerUrls, failures: result.failures, races: result.races, agfUsed: false, jockeyHistoryUsed: false, stored, model: 'HorseRide baseline v0.1' })
+    return sendJson(response, 200, { source: result.source, city: result.city, date: formatDate(date).iso, fetchedAt, providerUrls: result.providerUrls, failures: result.failures, races: result.races, agfUsed: false, jockeyHistoryUsed: false, stored, model: 'HorseRide baseline v0.1' })
   } catch (error) {
     return sendJson(response, 502, { error: error.message, source: 'tjk_csv' })
   }
