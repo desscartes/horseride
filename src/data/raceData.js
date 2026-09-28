@@ -24,7 +24,7 @@ function normalizeLiveRaces(payload) {
   })
 }
 
-export async function loadRaceProgram(city = 'Bursa', date = null) {
+export async function loadRaceProgram(city = 'Tümü', date = null) {
   try {
     const url = buildApiUrl('/api/races')
     url.searchParams.set('city', city)
@@ -35,7 +35,10 @@ export async function loadRaceProgram(city = 'Bursa', date = null) {
     const payload = await response.json()
     if (!Array.isArray(payload.races)) throw new Error('Yarış servisi beklenen formatta veri döndürmedi.')
 
-    return { races: normalizeLiveRaces(payload), city: payload.city || city, source: 'live', message: 'TJK programı otomatik alındı. AGF hariç ilk model aktif; jokey, idman ve daha derin geçmiş katmanları sıradaki veri genişlemesi olarak bekliyor.' }
+    const warning = Array.isArray(payload.failures) && payload.failures.length
+      ? ` Bazı merkezler şu an yanıt vermiyor: ${payload.failures.slice(0, 3).map((item) => item.city).join(', ')}.`
+      : ''
+    return { races: normalizeLiveRaces(payload), city: payload.city || city, source: 'live', message: `TJK programı otomatik alındı.${warning} AGF hariç ilk model aktif; jokey, idman ve daha derin geçmiş katmanları sıradaki veri genişlemesi olarak bekliyor.` }
   } catch (error) {
     return { races: [], city, source: 'unavailable', message: `Canlı TJK verisi alınamadı: ${error.message}` }
   }

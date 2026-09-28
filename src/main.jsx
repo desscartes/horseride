@@ -106,12 +106,12 @@ function generateCoupons(races) {
 function App() {
   const [activeView, setActiveView] = useState('dashboard')
   const [races, setRaces] = useState([])
-  const [selectedCity, setSelectedCity] = useState('Bursa')
+  const [selectedCity, setSelectedCity] = useState('Tümü')
   const [selectedRace, setSelectedRace] = useState(0)
   const [selectedDayOffset, setSelectedDayOffset] = useState(0)
   const [selectedCoupon, setSelectedCoupon] = useState(0)
   const [selectedHorseIndex, setSelectedHorseIndex] = useState(0)
-  const [dataState, setDataState] = useState({ city: 'Bursa', source: 'loading', message: 'Canlı TJK programı alınıyor.' })
+  const [dataState, setDataState] = useState({ city: 'Tümü', source: 'loading', message: 'Canlı TJK programı alınıyor.' })
   const [historyState, setHistoryState] = useState({ status: 'idle', name: '', entries: [], error: '' })
   const [archiveState, setArchiveState] = useState({ status: 'idle', analyses: [], error: '' })
   const [selectedArchiveIndex, setSelectedArchiveIndex] = useState(0)
@@ -147,6 +147,13 @@ function App() {
   }, [])
   const selectedDay = dayOptions.find((item) => item.offset === selectedDayOffset) || dayOptions[1]
   const hasLiveRaces = races.length > 0
+
+  function showCouponLab() {
+    setActiveView('dashboard')
+    window.setTimeout(() => {
+      document.getElementById('coupon-lab')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 0)
+  }
 
   async function refreshProgram(city = selectedCity, dayOffset = selectedDayOffset) {
     const safeCity = isEventLike(city) ? selectedCity : normalizeCityInput(city, selectedCity)
@@ -228,7 +235,7 @@ function App() {
         <div className="workspace-label">ANALİZ MERKEZİ</div>
         <nav>
           <button className={activeView === 'dashboard' ? 'nav-item active' : 'nav-item'} onClick={() => setActiveView('dashboard')}><span>◈</span> Yarış panosu</button>
-          <button className="nav-item"><span>⌁</span> Kupon laboratuvarı</button>
+          <button className={activeView === 'dashboard' && hasLiveRaces && generatedCoupons.length > 0 ? 'nav-item active' : 'nav-item'} onClick={showCouponLab}><span>⌁</span> Kupon laboratuvarı</button>
           <button className={activeView === 'history' ? 'nav-item active' : 'nav-item'} onClick={() => setActiveView('history')}><span>◷</span> Geçmiş analizler</button>
         </nav>
         <div className="sidebar-bottom">
@@ -249,7 +256,7 @@ function App() {
           <div><p className="eyebrow">{activeView === 'history' ? 'ARŞİV / YEREL VERİTABANI' : `YARIŞ GÜNÜ / ${selectedDay.label.toLocaleUpperCase('tr-TR')}`}</p><h1>{activeView === 'history' ? 'Geçmiş analizler' : 'Yarış zekası'}</h1><p className="subhead">{activeView === 'history' ? 'Kaydedilen yarışları, model favorilerini ve öne çıkan atları geriye dönük izle.' : 'Veriyi oku, tempoyu gör, kuponunu bilinçle kur.'}</p></div>
           {activeView === 'history'
             ? <button className="refresh-button" onClick={() => refreshArchive()} disabled={isRefreshingArchive}>{isRefreshingArchive ? '…' : '↻'} <span>{isRefreshingArchive ? 'Yükleniyor' : 'Arşivi yenile'}</span></button>
-            : <><div className="context-pickers"><label className="city-picker"><span>HİPODROM</span><select value={selectedCity} onChange={changeCity}><option>Bursa</option><option>İstanbul</option><option>Ankara</option><option>İzmir</option><option>Adana</option></select></label><label className="race-picker"><span>KOŞUYA GİT</span><select value={selectedRace} onChange={(event) => setSelectedRace(Number(event.target.value))}>{races.map((item, index) => <option value={index} key={item.no}>{item.no}. koşu · {item.time}</option>)}</select></label></div><button className="refresh-button" onClick={() => refreshProgram()} disabled={isRefreshing}>{isRefreshing ? '…' : '↻'} <span>{isRefreshing ? 'Yükleniyor' : 'Verileri yenile'}</span></button></>}
+            : <><div className="context-pickers"><label className="city-picker"><span>PROGRAM</span><select value={selectedCity} onChange={changeCity}><option>Tümü</option><option>İstanbul</option><option>Ankara</option><option>İzmir</option><option>Bursa</option><option>Adana</option><option>Kocaeli</option><option>Antalya</option><option>Diyarbakır</option><option>Elazığ</option><option>Şanlıurfa</option><option>Yurtdışı</option></select></label><label className="race-picker"><span>KOŞUYA GİT</span><select value={selectedRace} onChange={(event) => setSelectedRace(Number(event.target.value))}>{races.map((item, index) => <option value={index} key={`${item.city || dataState.city}-${item.no}-${item.time}`}>{item.city ? `${item.city} · ` : ''}{item.no}. koşu · {item.time}</option>)}</select></label></div><button className="refresh-button" onClick={() => refreshProgram()} disabled={isRefreshing}>{isRefreshing ? '…' : '↻'} <span>{isRefreshing ? 'Yükleniyor' : 'Verileri yenile'}</span></button></>}
         </section>
 
         <div className="day-tabs">{activeView === 'history' ? <><button className="day-tab active">Arşiv<small>Kaydedilen koşular</small></button><button className="day-tab" onClick={() => setActiveView('dashboard')}>Pano<small>Canlı görünüme dön</small></button></> : dayOptions.map((day) => <button key={day.offset} className={selectedDayOffset === day.offset ? 'day-tab active' : 'day-tab'} onClick={() => { setSelectedDayOffset(day.offset); refreshProgram(selectedCity, day.offset) }}>{day.label}<small>{day.shortDate}</small></button>)}</div>
@@ -284,20 +291,20 @@ function App() {
               <div><span>Toplam koşu</span><strong>{races.length}</strong><small>programda</small></div>
               <div><span>Analiz tamamlandı</span><strong>{analyzedCount}<span className="muted">/{Math.max(races.length, 1)}</span></strong><small>koşu</small></div>
               <div><span>Ortalama güven</span><strong className="green-text">{averageConfidence}%</strong><small>model skoru</small></div>
-              <div className="track-note"><span>Günün en net koşusu</span><strong>{topRace ? `${topRace.no}. koşu · ${topRace.favorite}` : 'Canlı program bekleniyor'}</strong><small>· İlk iki at arasında %{strongestEdge} fark</small></div>
+              <div className="track-note"><span>Günün en net koşusu</span><strong>{topRace ? `${topRace.city ? `${topRace.city} · ` : ''}${topRace.no}. koşu · ${topRace.favorite}` : 'Canlı program bekleniyor'}</strong><small>· İlk iki at arasında %{strongestEdge} fark</small></div>
             </section>
 
             <div className="content-grid">
               <section className="panel races-panel">
-                <div className="panel-heading"><div><p className="eyebrow">PROGRAM</p><h2>{dataState.city} koşuları</h2></div><div className="panel-heading-meta"><span className="race-count">{String(Math.min(selectedRace + 1, Math.max(races.length, 1))).padStart(2, '0')} / {String(Math.max(races.length, 1)).padStart(2, '0')}</span><span className={`live-badge ${dataState.source}`}><i /> {dataState.source === 'live' ? 'CANLI AKIŞ' : dataState.source === 'loading' ? 'YÜKLENİYOR' : 'VERİ BEKLENİYOR'}</span></div></div>
+                <div className="panel-heading"><div><p className="eyebrow">PROGRAM</p><h2>{dataState.city} yarış akışı</h2></div><div className="panel-heading-meta"><span className="race-count">{String(Math.min(selectedRace + 1, Math.max(races.length, 1))).padStart(2, '0')} / {String(Math.max(races.length, 1)).padStart(2, '0')}</span><span className={`live-badge ${dataState.source}`}><i /> {dataState.source === 'live' ? 'CANLI AKIŞ' : dataState.source === 'loading' ? 'YÜKLENİYOR' : 'VERİ BEKLENİYOR'}</span></div></div>
                 {hasLiveRaces
-                  ? <div className="race-list">{races.map((item, index) => <button key={item.no} onClick={() => setSelectedRace(index)} className={selectedRace === index ? 'race-row selected' : 'race-row'}><span className="race-number">{String(item.no).padStart(2, '0')}</span><span className="race-time">{item.time}</span><span className="race-info"><strong>{item.type}</strong><small>{item.distance} · {item.horseCount || item.favorites.length + 7} at</small></span><span className="race-favorite"><small>MODEL FAVORİSİ</small><strong>{item.favorite}</strong></span><span className="confidence"><b>{item.confidence}%</b><small>güven</small></span><span className="chevron">›</span></button>)}</div>
+                  ? <div className="race-list">{races.map((item, index) => <button key={`${item.city || dataState.city}-${item.no}-${item.time}`} onClick={() => setSelectedRace(index)} className={selectedRace === index ? 'race-row selected' : 'race-row'}><span className="race-number">{String(item.no).padStart(2, '0')}</span><span className="race-time">{item.time}</span><span className="race-info"><strong>{item.type}</strong><small>{item.city ? `${item.city} · ` : ''}{item.distance} · {item.horseCount || item.favorites.length + 7} at</small></span><span className="race-favorite"><small>MODEL FAVORİSİ</small><strong>{item.favorite}</strong></span><span className="confidence"><b>{item.confidence}%</b><small>güven</small></span><span className="chevron">›</span></button>)}</div>
                   : <div className="empty-panel"><strong>Canlı program henüz alınamadı.</strong><p>{dataState.message} Uygulama artık mock veri göstermiyor; gerçek program gelince tüm koşular otomatik dolacak.</p><button className="secondary-action" onClick={() => refreshProgram()}>Tekrar dene</button></div>}
-                <button className="all-races">Tüm koşu programını gör <span>→</span></button>
+                <button className="all-races" onClick={showCouponLab}>Kupon laboratuvarına geç <span>→</span></button>
               </section>
 
               <section className="panel analysis-panel">
-                <div className="panel-heading"><div><p className="eyebrow">YAPAY ZEKA ANALİZİ</p><h2>{race.no}. koşu detayı</h2></div><span className="analysis-icon">✦</span></div>
+                <div className="panel-heading"><div><p className="eyebrow">YAPAY ZEKA ANALİZİ</p><h2>{race.city ? `${race.city} · ` : ''}{race.no}. koşu detayı</h2></div><span className="analysis-icon">✦</span></div>
                 {!hasLiveRaces && <div className="empty-analysis"><strong>Canlı veri gelmeden model çıktısı üretilmiyor.</strong><p>Hedefimiz günlük TJK programını, geçmiş yarışlar ve genişletilecek jokey/idman katmanlarıyla birleştirip her koşudaki en yüksek kazanma olasılığını göstermek. Şu an bağlantı tekrar denendiğinde veri otomatik gelecektir.</p></div>}
                 {hasLiveRaces && <>
                 <div className="analysis-hero"><div className="horse-silhouette">♞</div><div><small>SEÇİLİ AT</small><h3>{activeHorse?.name || race.favorite}</h3><p>{displayedNote}</p></div><strong className="big-confidence">{displayedConfidence}%<small>kazanma<br />olasılığı</small></strong></div>
@@ -335,7 +342,7 @@ function App() {
               </section>
             </div>
 
-            <section className="coupon-section"><div className="section-title"><div><p className="eyebrow">AKILLI KUPONLAR</p><h2>Canlı veriden üretilen kombinasyonlar</h2></div><p>Bugünkü analiz güvenlerine göre otomatik oluşturulmuş öneriler</p></div>{generatedCoupons.length > 0 ? <><div className="coupon-grid">{generatedCoupons.map((item, index) => <button key={item.name} onClick={() => setSelectedCoupon(index)} className={selectedCoupon === index ? 'coupon-card selected modern-coupon' : 'coupon-card modern-coupon'}><div className="coupon-top"><span className="coupon-tag">{item.tag}</span><span className="coupon-arrow">↗</span></div><h3>{item.name}</h3><p>{item.game} <span>·</span> {item.bankerCount} bankolu yapı</p><div className="coupon-bottom"><div><strong>{item.chance}%</strong><small>ortalama favori<br />güveni</small></div><span className="cost">{item.cost}</span></div></button>)}</div><div className="coupon-summary live-summary"><span className="summary-icon">✓</span><div><strong>{coupon?.name} seçildi</strong><small>{coupon?.game} · Tahmini güven %{coupon?.chance} · {coupon?.cost}</small></div><button>Kuponu incele <span>→</span></button></div>{coupon && <div className="ticket-lab"><div className="ticket-lab-head"><strong>Kupon laboratuvarı</strong><small>Her ayak için modelin seçtiği atlar</small></div><div className="ticket-legs">{coupon.legs.map((leg) => <div className="ticket-leg" key={leg}><span>{leg.split(':')[0]}</span><strong>{leg.split(': ')[1]}</strong></div>)}</div></div>}</> : <div className="empty-panel coupon-empty"><strong>Kupon üretmek için canlı yarış programı gerekli.</strong><p>Gerçek veri geldiğinde sistem tüm koşular için olasılıkları hesaplayıp bankolu ve korunaklı kuponları otomatik çıkaracak.</p></div>}<div className="disclaimer"><span>ⓘ</span><p>{dataState.message} Bugünkü hedef, canlı TJK programını geçmiş yarışlar, jokey/idman/veri genişlemeleri ve model tahminleriyle tek ekranda birleştirmek.</p><button>Model metodolojisi →</button></div></section>
+            <section className="coupon-section" id="coupon-lab"><div className="section-title"><div><p className="eyebrow">AKILLI KUPONLAR</p><h2>Canlı veriden üretilen kombinasyonlar</h2></div><p>Bugünkü analiz güvenlerine göre otomatik oluşturulmuş öneriler</p></div>{generatedCoupons.length > 0 ? <><div className="coupon-grid">{generatedCoupons.map((item, index) => <button key={item.name} onClick={() => setSelectedCoupon(index)} className={selectedCoupon === index ? 'coupon-card selected modern-coupon' : 'coupon-card modern-coupon'}><div className="coupon-top"><span className="coupon-tag">{item.tag}</span><span className="coupon-arrow">↗</span></div><h3>{item.name}</h3><p>{item.game} <span>·</span> {item.bankerCount} bankolu yapı</p><div className="coupon-bottom"><div><strong>{item.chance}%</strong><small>ortalama favori<br />güveni</small></div><span className="cost">{item.cost}</span></div></button>)}</div><div className="coupon-summary live-summary"><span className="summary-icon">✓</span><div><strong>{coupon?.name} seçildi</strong><small>{coupon?.game} · Tahmini güven %{coupon?.chance} · {coupon?.cost}</small></div><button onClick={showCouponLab}>Kuponu incele <span>→</span></button></div>{coupon && <div className="ticket-lab"><div className="ticket-lab-head"><strong>Kupon laboratuvarı</strong><small>Her ayak için modelin seçtiği atlar</small></div><div className="ticket-legs">{coupon.legs.map((leg) => <div className="ticket-leg" key={leg}><span>{leg.split(':')[0]}</span><strong>{leg.split(': ')[1]}</strong></div>)}</div></div>}</> : <div className="empty-panel coupon-empty"><strong>Kupon üretmek için canlı yarış programı gerekli.</strong><p>Gerçek veri geldiğinde sistem tüm koşular için olasılıkları hesaplayıp bankolu ve korunaklı kuponları otomatik çıkaracak.</p></div>}<div className="disclaimer"><span>ⓘ</span><p>{dataState.message} Bugünkü hedef, canlı TJK programını geçmiş yarışlar, jokey/idman/veri genişlemeleri ve model tahminleriyle tek ekranda birleştirmek.</p><button>Model metodolojisi →</button></div></section>
           </>}
         <footer><span>HorseRide Intelligence v0.1</span><span>Veri kaynağı: {activeView === 'history' ? 'yerel analiz arşivi' : dataState.source === 'live' ? 'otomatik TJK çekimi' : 'canlı veri bekleniyor'} · Sorumlu oyun</span></footer>
       </main>
