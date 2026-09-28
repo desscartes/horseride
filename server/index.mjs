@@ -33,6 +33,42 @@ function parseClock(value) {
   return Number(match[1]) * 60 + Number(match[2])
 }
 
+function normalizeDateToken(value) {
+  const match = String(value || '').match(/(\d{2})[./-](\d{2})[./-](\d{4})/)
+  if (!match) return null
+  return `${match[3]}-${match[2]}-${match[1]}`
+}
+
+function extractMeetingDate(cells) {
+  for (const cell of cells) {
+    const normalized = normalizeDateToken(cell)
+    if (normalized) return normalized
+  }
+  return null
+}
+
+function extractRaceHeader(cells) {
+  for (let index = 0; index < cells.length; index += 1) {
+    const cell = cells[index]
+    const match = String(cell || '').match(/(?:^|.*\s)(\d+)\.\s*Ko[sş]u\s*:\s*(\d{1,2}[.:]\d{2})/i)
+    if (!match) continue
+    return {
+      no: Number(match[1]),
+      time: match[2].replace(':', '.'),
+      detailsIndex: index,
+    }
+  }
+  return null
+}
+
+function extractDistance(cells, startIndex = 0) {
+  return cells.slice(startIndex).find((cell) => /\b\d{3,4}\s*m\b/i.test(cell)) || ''
+}
+
+function extractSurface(cells, startIndex = 0) {
+  return cells.slice(startIndex).find((cell) => /^(Çim|Kum|Sentetik)$/i.test(cell)) || ''
+}
+
 function formScore(form) {
   const values = String(form || '').match(/[0-9]/g) || []
   if (!values.length) return 0.5
@@ -75,13 +111,25 @@ function parseCsv(text) {
   const races = []
   let current = null
   let readingHorses = false
+  let meetingDate = null
 
   for (const line of lines) {
     const cells = line.split(';').map((cell) => cell.trim())
-    const raceMatch = cells[0]?.match(/^(\d+)\.\s*Kosu\s*:\s*(\d{1,2}\.\d{2})/i)
-    if (raceMatch) {
+    meetingDate ||= extractMeetingDate(cells)
+    const raceHeader = extractRaceHeader(cells)
+    if (raceHeader) {
       if (current) races.push(scoreRace(current))
-      current = { no: Number(raceMatch[1]), time: raceMatch[2], type: cells[1] || '', conditions: cells.slice(2, 7).filter(Boolean).join(' · '), distance: cells[4] || '', surface: cells[5] || '', horses: [] }
+      const metadataCells = cells.slice(raceHeader.detailsIndex + 1).filter(Boolean)
+      current = {
+        no: raceHeader.no,
+        time: raceHeader.time,
+        venue: raceHeader.detailsIndex > 0 ? cells[0] || '' : '',
+        type: metadataCells[0] || '',
+        conditions: metadataCells.slice(0, 6).join(' · '),
+        distance: extractDistance(metadataCells) || metadataCells[3] || '',
+        surface: extractSurface(metadataCells) || metadataCells[4] || '',
+        horses: [],
+      }
       readingHorses = false
       continue
     }
@@ -106,16 +154,49 @@ function parseCsv(text) {
     })
   }
   if (current) races.push(scoreRace(current))
-  return races
+  return { meetingDate, races }
+}
+
+function buildProgramSources(date, city) {
+  const { iso, display } = formatDate(date)
+  const isForeign = foreignProgramCities.includes(city)
+  const sources = [{
+    label: `${city} arşiv CSV`,
+    url: `https://medya-cdn.tjk.org/raporftp/TJKPDF/${date.getFullYear()}/${iso}/CSV/GunlukYarisProgrami/${display}-${encodeURIComponent(city)}-GunlukYarisProgrami-TR.csv`,
+  }]
+
+  if (isForeign) {
+    sources.unshift({
+      label: `${city} günlük CSV`,
+      url: 'https://www.tjk.org/TR/YarisSever/Info/Page/GunlukYarisProgramiYurtDisiCSV',
+    })
+  }
+
+  return sources
 }
 
 async function fetchProgram(date, city) {
-  const { display } = formatDate(date)
-  const url = `https://medya-cdn.tjk.org/raporftp/TJKPDF/${date.getFullYear()}/${formatDate(date).iso}/CSV/GunlukYarisProgrami/${display}-${encodeURIComponent(city)}-GunlukYarisProgrami-TR.csv`
-  const response = await fetch(url, { headers: { 'User-Agent': 'HorseRide/0.1 data research' } })
-  if (!response.ok) throw new Error(`TJK CSV ${response.status} döndürdü.`)
-  const text = Buffer.from(await response.arrayBuffer()).toString('utf8')
-  return { url, races: parseCsv(text) }
+  const expectedDate = formatDate(date).iso
+  const sources = buildProgramSources(date, city)
+  const errors = []
+
+  for (const source of sources) {
+    try {
+      const response = await fetch(source.url, { headers: { 'User-Agent': 'HorseRide/0.1 data research' } })
+      if (!response.ok) throw new Error(`TJK CSV ${response.status} döndürdü.`)
+      const text = Buffer.from(await response.arrayBuffer()).toString('utf8')
+      const parsed = parseCsv(text)
+      if (!parsed.races.length) throw new Error('Program dosyasında koşu bulunamadı.')
+      if (parsed.meetingDate && parsed.meetingDate !== expectedDate) {
+        throw new Error(`İstenen tarih ${expectedDate}, gelen dosya ${parsed.meetingDate}.`)
+      }
+      return { url: source.url, races: parsed.races, meetingDate: parsed.meetingDate || expectedDate }
+    } catch (error) {
+      errors.push(`${source.label}: ${error.message}`)
+    }
+  }
+
+  throw new Error(errors.join(' | '))
 }
 
 async function fetchPrograms(date, citySelection) {
@@ -128,7 +209,7 @@ async function fetchPrograms(date, citySelection) {
       providerUrl: result.url,
       races: result.races
         .filter((race) => race.horses?.length)
-        .map((race) => ({ ...race, city, track: city })),
+        .map((race) => ({ ...race, city: race.venue || city, track: race.venue || city })),
     }
   }))
 
