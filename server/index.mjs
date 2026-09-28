@@ -353,6 +353,141 @@ async function fetchPrograms(date, citySelection) {
   }
 }
 
+function summarizeRaces(races) {
+  return races.slice(0, 12).map((race) => ({
+    city: race.city || race.venue || race.track || '',
+    no: race.no,
+    time: race.time,
+    horseCount: race.horses?.length || 0,
+    favorite: race.horses?.[0]?.name || null,
+  }))
+}
+
+async function debugOfficialProgram(date, citySelection) {
+  const expectedDate = formatDate(date).iso
+  const wantsAll = isAllCitySelection(citySelection)
+  const wantsForeignOnly = isForeignCitySelection(citySelection)
+
+  try {
+    const response = await tjkApi.getProgram({ date })
+    const meetings = Array.isArray(response?.data) ? response.data : []
+    const meetingDiagnostics = meetings.map((meeting) => {
+      const reasons = []
+      if (meeting.date !== expectedDate) reasons.push(`date:${meeting.date}`)
+      if (!wantsAll && wantsForeignOnly && !meeting.abroad) reasons.push('not_foreign')
+      if (!wantsAll && !wantsForeignOnly && meeting.abroad) reasons.push('foreign_filtered')
+      if (!wantsAll && !wantsForeignOnly && !meeting.abroad && !matchesVenueSelection(citySelection, meeting.location, meeting.hippodrome)) reasons.push('venue_filtered')
+
+      return {
+        date: meeting.date,
+        location: meeting.location,
+        hippodrome: meeting.hippodrome,
+        abroad: Boolean(meeting.abroad),
+        runCount: meeting.runs?.length || 0,
+        included: reasons.length === 0,
+        reasons,
+      }
+    })
+
+    return {
+      ok: true,
+      source: 'official_api',
+      checksum: response.checksum || null,
+      updateTime: response.updateTime || null,
+      meetingsReceived: meetings.length,
+      meetingsIncluded: meetingDiagnostics.filter((item) => item.included).length,
+      meetings: meetingDiagnostics,
+    }
+  } catch (error) {
+    return {
+      ok: false,
+      source: 'official_api',
+      error: error.message,
+    }
+  }
+}
+
+async function debugCsvProgramForCity(date, city) {
+  const expectedDate = formatDate(date).iso
+  const normalizedCity = normalizeText(city)
+  const isForeignRequest = isForeignCitySelection(city)
+  const sources = buildProgramSources(date, city)
+  const attempts = []
+
+  for (const source of sources) {
+    try {
+      const response = await fetch(source.url, { headers: { 'User-Agent': 'HorseRide/0.1 data research' } })
+      const text = response.ok ? Buffer.from(await response.arrayBuffer()).toString('utf8') : ''
+      const parsed = response.ok ? parseCsv(text) : null
+      const firstMismatchedVenue = !isForeignRequest && parsed?.races?.find((race) => race.venue && normalizeText(race.venue) !== normalizedCity)?.venue
+
+      attempts.push({
+        label: source.label,
+        url: source.url,
+        ok: response.ok,
+        status: response.status,
+        contentType: response.headers.get('content-type') || null,
+        htmlDetected: response.ok ? isLikelyHtmlDocument(text, response.headers.get('content-type') || '') : null,
+        parsedMeetingDate: parsed?.meetingDate || null,
+        horseHeaderSeen: parsed?.horseHeaderSeen || false,
+        raceCount: parsed?.races?.length || 0,
+        firstVenue: parsed?.races?.[0]?.venue || null,
+        firstMismatchedVenue: firstMismatchedVenue || null,
+        requestedDate: expectedDate,
+      })
+    } catch (error) {
+      attempts.push({
+        label: source.label,
+        url: source.url,
+        ok: false,
+        error: error.message,
+        requestedDate: expectedDate,
+      })
+    }
+  }
+
+  return { city, source: 'tjk_csv', attempts }
+}
+
+async function debugRaceSources(date, citySelection) {
+  const wantsAll = isAllCitySelection(citySelection)
+  const cities = wantsAll ? allProgramCities : [citySelection]
+  const official = await debugOfficialProgram(date, citySelection)
+  const csv = await Promise.all(cities.map((city) => debugCsvProgramForCity(date, city)))
+  let liveResult = null
+
+  try {
+    const result = await fetchPrograms(date, citySelection)
+    liveResult = {
+      ok: true,
+      source: result.source,
+      city: result.city,
+      providerUrls: result.providerUrls,
+      failures: result.failures,
+      raceCount: result.races.length,
+      races: summarizeRaces(result.races),
+    }
+  } catch (error) {
+    liveResult = {
+      ok: false,
+      error: error.message,
+    }
+  }
+
+  return {
+    requested: {
+      city: citySelection,
+      date: formatDate(date).iso,
+      allSelection: wantsAll,
+      foreignSelection: isForeignCitySelection(citySelection),
+      csvCities: cities,
+    },
+    official,
+    csv,
+    liveResult,
+  }
+}
+
 function sendJson(response, status, data) {
   response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' })
   response.end(JSON.stringify(data))
@@ -368,6 +503,14 @@ createServer(async (request, response) => {
   }
   if (requestUrl.pathname === '/api/history/races') return sendJson(response, 200, { analyses: listRecentAnalyses() })
   if (requestUrl.pathname === '/api/history/health') return sendJson(response, 200, databaseHealth())
+  if (requestUrl.pathname === '/api/debug/races') {
+    const dateParam = requestUrl.searchParams.get('date')
+    const city = requestUrl.searchParams.get('city') || defaultCity
+    const date = dateParam ? new Date(`${dateParam}T12:00:00`) : new Date()
+    if (Number.isNaN(date.getTime())) return sendJson(response, 400, { error: 'Geçersiz tarih.' })
+    const diagnostics = await debugRaceSources(date, city)
+    return sendJson(response, 200, diagnostics)
+  }
   if (requestUrl.pathname !== '/api/races') return sendJson(response, 404, { error: 'Not found' })
 
   try {
