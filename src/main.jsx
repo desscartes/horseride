@@ -26,6 +26,18 @@ function formatLongDate(date) {
   return new Intl.DateTimeFormat('tr-TR', { day: '2-digit', month: 'long', year: 'numeric' }).format(date)
 }
 
+function isEventLike(value) {
+  return value && typeof value === 'object' && 'target' in value && 'nativeEvent' in value
+}
+
+function normalizeCityInput(value, fallback) {
+  return typeof value === 'string' && value.trim() ? value : fallback
+}
+
+function normalizeDayOffset(value, fallback) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback
+}
+
 function buildFallbackHorses(race) {
   const baseConfidence = Math.max(12, Math.min(88, race.confidence || 0))
   const secondProbability = Math.max(7, Math.round((100 - baseConfidence) * 0.52))
@@ -95,12 +107,14 @@ function App() {
   const selectedDay = dayOptions.find((item) => item.offset === selectedDayOffset) || dayOptions[1]
 
   async function refreshProgram(city = selectedCity, dayOffset = selectedDayOffset) {
-    const nextDay = dayOptions.find((item) => item.offset === dayOffset) || dayOptions[1]
+    const safeCity = isEventLike(city) ? selectedCity : normalizeCityInput(city, selectedCity)
+    const safeDayOffset = isEventLike(dayOffset) ? selectedDayOffset : normalizeDayOffset(dayOffset, selectedDayOffset)
+    const nextDay = dayOptions.find((item) => item.offset === safeDayOffset) || dayOptions[1]
     setIsRefreshing(true)
     try {
-      const result = await loadRaceProgram(city, nextDay.apiDate)
+      const result = await loadRaceProgram(safeCity, nextDay.apiDate)
       setRaces(result.races)
-      setDataState({ city: result.city || selectedCity, source: result.source, message: result.message })
+      setDataState({ city: normalizeCityInput(result.city, safeCity), source: result.source, message: result.message })
       setSelectedRace(0)
       setLastUpdated(new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }))
     } catch (error) {
@@ -188,8 +202,8 @@ function App() {
         <section className="intro-row">
           <div><p className="eyebrow">{activeView === 'history' ? 'ARŞİV / YEREL VERİTABANI' : `YARIŞ GÜNÜ / ${selectedDay.label.toLocaleUpperCase('tr-TR')}`}</p><h1>{activeView === 'history' ? 'Geçmiş analizler' : 'Yarış zekası'}</h1><p className="subhead">{activeView === 'history' ? 'Kaydedilen yarışları, model favorilerini ve öne çıkan atları geriye dönük izle.' : 'Veriyi oku, tempoyu gör, kuponunu bilinçle kur.'}</p></div>
           {activeView === 'history'
-            ? <button className="refresh-button" onClick={refreshArchive} disabled={isRefreshingArchive}>{isRefreshingArchive ? '…' : '↻'} <span>{isRefreshingArchive ? 'Yükleniyor' : 'Arşivi yenile'}</span></button>
-            : <><div className="context-pickers"><label className="city-picker"><span>HİPODROM</span><select value={selectedCity} onChange={changeCity}><option>Bursa</option><option>İstanbul</option><option>Ankara</option><option>İzmir</option><option>Adana</option></select></label><label className="race-picker"><span>KOŞUYA GİT</span><select value={selectedRace} onChange={(event) => setSelectedRace(Number(event.target.value))}>{races.map((item, index) => <option value={index} key={item.no}>{item.no}. koşu · {item.time}</option>)}</select></label></div><button className="refresh-button" onClick={refreshProgram} disabled={isRefreshing}>{isRefreshing ? '…' : '↻'} <span>{isRefreshing ? 'Yükleniyor' : 'Verileri yenile'}</span></button></>}
+            ? <button className="refresh-button" onClick={() => refreshArchive()} disabled={isRefreshingArchive}>{isRefreshingArchive ? '…' : '↻'} <span>{isRefreshingArchive ? 'Yükleniyor' : 'Arşivi yenile'}</span></button>
+            : <><div className="context-pickers"><label className="city-picker"><span>HİPODROM</span><select value={selectedCity} onChange={changeCity}><option>Bursa</option><option>İstanbul</option><option>Ankara</option><option>İzmir</option><option>Adana</option></select></label><label className="race-picker"><span>KOŞUYA GİT</span><select value={selectedRace} onChange={(event) => setSelectedRace(Number(event.target.value))}>{races.map((item, index) => <option value={index} key={item.no}>{item.no}. koşu · {item.time}</option>)}</select></label></div><button className="refresh-button" onClick={() => refreshProgram()} disabled={isRefreshing}>{isRefreshing ? '…' : '↻'} <span>{isRefreshing ? 'Yükleniyor' : 'Verileri yenile'}</span></button></>}
         </section>
 
         <div className="day-tabs">{activeView === 'history' ? <><button className="day-tab active">Arşiv<small>Kaydedilen koşular</small></button><button className="day-tab" onClick={() => setActiveView('dashboard')}>Pano<small>Canlı görünüme dön</small></button></> : dayOptions.map((day) => <button key={day.offset} className={selectedDayOffset === day.offset ? 'day-tab active' : 'day-tab'} onClick={() => { setSelectedDayOffset(day.offset); refreshProgram(selectedCity, day.offset) }}>{day.label}<small>{day.shortDate}</small></button>)}</div>
