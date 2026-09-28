@@ -1,6 +1,6 @@
 import { StrictMode, useEffect, useMemo, useState } from 'react'
 import { createRoot } from 'react-dom/client'
-import { loadHorseHistory, loadRaceProgram, loadRecentAnalyses } from './data/raceData'
+import { loadHorseHistory, loadRaceDebug, loadRaceProgram, loadRecentAnalyses } from './data/raceData'
 import './styles.css'
 
 const factorLabels = { form: 'Son form', time: 'Derece', weight: 'Kilo', recency: 'Dinlenme', gate: 'Start' }
@@ -111,7 +111,8 @@ function App() {
   const [selectedDayOffset, setSelectedDayOffset] = useState(0)
   const [selectedCoupon, setSelectedCoupon] = useState(0)
   const [selectedHorseIndex, setSelectedHorseIndex] = useState(0)
-  const [dataState, setDataState] = useState({ city: 'Tümü', source: 'loading', message: 'Canlı TJK programı alınıyor.' })
+  const [dataState, setDataState] = useState({ city: 'Tümü', source: 'loading', providerSource: 'loading', providerUrls: [], failures: [], message: 'Canlı TJK programı alınıyor.' })
+  const [debugState, setDebugState] = useState({ status: 'idle', payload: null, error: '' })
   const [historyState, setHistoryState] = useState({ status: 'idle', name: '', entries: [], error: '' })
   const [archiveState, setArchiveState] = useState({ status: 'idle', analyses: [], error: '' })
   const [selectedArchiveIndex, setSelectedArchiveIndex] = useState(0)
@@ -147,6 +148,9 @@ function App() {
   }, [])
   const selectedDay = dayOptions.find((item) => item.offset === selectedDayOffset) || dayOptions[1]
   const hasLiveRaces = races.length > 0
+  const liveCities = useMemo(() => [...new Set(races.map((item) => item.city).filter(Boolean))], [races])
+  const debugMeetings = debugState.payload?.official?.meetings?.filter((item) => item.included) || []
+  const debugCsvAttempts = debugState.payload?.csv?.flatMap((entry) => entry.attempts || []) || []
 
   function showCouponLab() {
     setActiveView('dashboard')
@@ -160,15 +164,29 @@ function App() {
     const safeDayOffset = isEventLike(dayOffset) ? selectedDayOffset : normalizeDayOffset(dayOffset, selectedDayOffset)
     const nextDay = dayOptions.find((item) => item.offset === safeDayOffset) || dayOptions[1]
     setIsRefreshing(true)
+    setDebugState((current) => ({ ...current, status: 'loading', error: '' }))
     try {
-      const result = await loadRaceProgram(safeCity, nextDay.apiDate)
+      const [result, debugResult] = await Promise.all([
+        loadRaceProgram(safeCity, nextDay.apiDate),
+        loadRaceDebug(safeCity, nextDay.apiDate).catch((error) => ({ error: error.message })),
+      ])
       setRaces(result.races)
-      setDataState({ city: normalizeCityInput(result.city, safeCity), source: result.source, message: result.message })
+      setDataState({
+        city: normalizeCityInput(result.city, safeCity),
+        source: result.source,
+        providerSource: result.providerSource,
+        providerUrls: result.providerUrls,
+        failures: result.failures,
+        message: result.message,
+      })
+      if (debugResult?.error) setDebugState({ status: 'error', payload: null, error: debugResult.error })
+      else setDebugState({ status: 'ready', payload: debugResult, error: '' })
       setSelectedRace(0)
       setSelectedCoupon(0)
       setLastUpdated(new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }))
     } catch (error) {
-      setDataState({ source: 'error', message: error.message })
+      setDataState({ city: safeCity, source: 'error', providerSource: 'error', providerUrls: [], failures: [], message: error.message })
+      setDebugState({ status: 'error', payload: null, error: error.message })
     } finally {
       setIsRefreshing(false)
     }
@@ -291,7 +309,7 @@ function App() {
               <div><span>Toplam koşu</span><strong>{races.length}</strong><small>programda</small></div>
               <div><span>Analiz tamamlandı</span><strong>{analyzedCount}<span className="muted">/{Math.max(races.length, 1)}</span></strong><small>koşu</small></div>
               <div><span>Ortalama güven</span><strong className="green-text">{averageConfidence}%</strong><small>model skoru</small></div>
-              <div className="track-note"><span>Günün en net koşusu</span><strong>{topRace ? `${topRace.city ? `${topRace.city} · ` : ''}${topRace.no}. koşu · ${topRace.favorite}` : 'Canlı program bekleniyor'}</strong><small>· İlk iki at arasında %{strongestEdge} fark</small></div>
+              <div className="track-note"><span>Günün en net koşusu</span><strong>{topRace ? `${topRace.city ? `${topRace.city} · ` : ''}${topRace.no}. koşu · ${topRace.favorite}` : 'Canlı program bekleniyor'}</strong><small>· İlk iki at arasında %{strongestEdge} fark · Kaynak: {dataState.providerSource}</small></div>
             </section>
 
             <div className="content-grid">
@@ -341,6 +359,50 @@ function App() {
                 </>}
               </section>
             </div>
+
+            <section className="panel live-debug-panel">
+              <div className="panel-heading">
+                <div>
+                  <p className="eyebrow">CANLI VERİ TEŞHİSİ</p>
+                  <h2>Kaynak ve filtre özeti</h2>
+                </div>
+                <span className="analysis-icon">⌘</span>
+              </div>
+              <div className="debug-grid">
+                <div className="debug-card">
+                  <span>Aktif kaynak</span>
+                  <strong>{dataState.providerSource}</strong>
+                  <small>{dataState.providerUrls[0] || 'provider bilgisi yok'}</small>
+                </div>
+                <div className="debug-card">
+                  <span>Gelen şehirler</span>
+                  <strong>{liveCities.length}</strong>
+                  <small>{liveCities.slice(0, 4).join(', ') || 'henüz şehir yok'}</small>
+                </div>
+                <div className="debug-card">
+                  <span>Official eşleşme</span>
+                  <strong>{debugMeetings.length}</strong>
+                  <small>{debugState.payload?.official?.ok ? 'meeting eşleşti' : 'official kaynak hata verdi'}</small>
+                </div>
+                <div className="debug-card">
+                  <span>CSV deneme</span>
+                  <strong>{debugCsvAttempts.length}</strong>
+                  <small>{dataState.failures.length ? `${dataState.failures.length} merkez sorunlu` : 'ek hata raporu yok'}</small>
+                </div>
+              </div>
+              {dataState.failures.length > 0 && <div className="debug-list"><strong>Eksik / düşen merkezler</strong>{dataState.failures.map((item) => <span key={`${item.city}-${item.error}`}>{item.city}: {item.error}</span>)}</div>}
+              {debugState.status === 'error' && <p className="debug-message error">{debugState.error}</p>}
+              {debugState.status === 'ready' && debugState.payload && <>
+                <div className="debug-list">
+                  <strong>Official filtre sonucu</strong>
+                  {(debugState.payload.official?.meetings || []).slice(0, 6).map((meeting) => <span key={`${meeting.location}-${meeting.date}-${meeting.hippodrome}`}>{meeting.included ? '✓' : '–'} {meeting.location || meeting.hippodrome} · {meeting.date} · {meeting.abroad ? 'yabancı' : 'yerli'}{meeting.reasons?.length ? ` · ${meeting.reasons.join(', ')}` : ''}</span>)}
+                </div>
+                <div className="debug-list">
+                  <strong>CSV kaynak özeti</strong>
+                  {debugCsvAttempts.slice(0, 6).map((attempt) => <span key={`${attempt.label}-${attempt.url}`}>{attempt.label}: {attempt.ok ? `${attempt.status} · ${attempt.parsedMeetingDate || 'tarih yok'} · ${attempt.firstVenue || 'venue yok'}` : attempt.error || 'başarısız'}</span>)}
+                </div>
+              </>}
+            </section>
 
             <section className="coupon-section" id="coupon-lab"><div className="section-title"><div><p className="eyebrow">AKILLI KUPONLAR</p><h2>Canlı veriden üretilen kombinasyonlar</h2></div><p>Bugünkü analiz güvenlerine göre otomatik oluşturulmuş öneriler</p></div>{generatedCoupons.length > 0 ? <><div className="coupon-grid">{generatedCoupons.map((item, index) => <button key={item.name} onClick={() => setSelectedCoupon(index)} className={selectedCoupon === index ? 'coupon-card selected modern-coupon' : 'coupon-card modern-coupon'}><div className="coupon-top"><span className="coupon-tag">{item.tag}</span><span className="coupon-arrow">↗</span></div><h3>{item.name}</h3><p>{item.game} <span>·</span> {item.bankerCount} bankolu yapı</p><div className="coupon-bottom"><div><strong>{item.chance}%</strong><small>ortalama favori<br />güveni</small></div><span className="cost">{item.cost}</span></div></button>)}</div><div className="coupon-summary live-summary"><span className="summary-icon">✓</span><div><strong>{coupon?.name} seçildi</strong><small>{coupon?.game} · Tahmini güven %{coupon?.chance} · {coupon?.cost}</small></div><button onClick={showCouponLab}>Kuponu incele <span>→</span></button></div>{coupon && <div className="ticket-lab"><div className="ticket-lab-head"><strong>Kupon laboratuvarı</strong><small>Her ayak için modelin seçtiği atlar</small></div><div className="ticket-legs">{coupon.legs.map((leg) => <div className="ticket-leg" key={leg}><span>{leg.split(':')[0]}</span><strong>{leg.split(': ')[1]}</strong></div>)}</div></div>}</> : <div className="empty-panel coupon-empty"><strong>Kupon üretmek için canlı yarış programı gerekli.</strong><p>Gerçek veri geldiğinde sistem tüm koşular için olasılıkları hesaplayıp bankolu ve korunaklı kuponları otomatik çıkaracak.</p></div>}<div className="disclaimer"><span>ⓘ</span><p>{dataState.message} Bugünkü hedef, canlı TJK programını geçmiş yarışlar, jokey/idman/veri genişlemeleri ve model tahminleriyle tek ekranda birleştirmek.</p><button>Model metodolojisi →</button></div></section>
           </>}

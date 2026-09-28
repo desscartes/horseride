@@ -38,10 +38,32 @@ export async function loadRaceProgram(city = 'Tümü', date = null) {
     const warning = Array.isArray(payload.failures) && payload.failures.length
       ? ` Bazı merkezler şu an yanıt vermiyor: ${payload.failures.slice(0, 3).map((item) => item.city).join(', ')}.`
       : ''
-    return { races: normalizeLiveRaces(payload), city: payload.city || city, source: 'live', message: `TJK programı otomatik alındı.${warning} AGF hariç ilk model aktif; jokey, idman ve daha derin geçmiş katmanları sıradaki veri genişlemesi olarak bekliyor.` }
+    return {
+      races: normalizeLiveRaces(payload),
+      city: payload.city || city,
+      source: 'live',
+      providerSource: payload.source || 'unknown',
+      providerUrls: payload.providerUrls || [],
+      failures: payload.failures || [],
+      message: `TJK programı otomatik alındı.${warning} AGF hariç ilk model aktif; jokey, idman ve daha derin geçmiş katmanları sıradaki veri genişlemesi olarak bekliyor.`,
+    }
   } catch (error) {
-    return { races: [], city, source: 'unavailable', message: `Canlı TJK verisi alınamadı: ${error.message}` }
+    return { races: [], city, source: 'unavailable', providerSource: 'unavailable', providerUrls: [], failures: [], message: `Canlı TJK verisi alınamadı: ${error.message}` }
   }
+}
+
+export async function loadRaceDebug(city = 'Tümü', date = null) {
+  const url = buildApiUrl('/api/debug/races')
+  url.searchParams.set('city', city)
+  if (date) url.searchParams.set('date', date)
+
+  const response = await fetch(url)
+  if (!response.ok) throw new Error(`Debug servis ${response.status} döndürdü.`)
+
+  const payload = await response.json()
+  if (!payload || typeof payload !== 'object') throw new Error('Debug servis beklenen formatta veri döndürmedi.')
+
+  return payload
 }
 
 export async function loadHorseHistory(name) {
