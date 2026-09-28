@@ -1,9 +1,10 @@
 import { StrictMode, useEffect, useMemo, useState } from 'react'
 import { createRoot } from 'react-dom/client'
-import { coupons, demoRaces, loadHorseHistory, loadRaceProgram, loadRecentAnalyses } from './data/raceData'
+import { loadHorseHistory, loadRaceProgram, loadRecentAnalyses } from './data/raceData'
 import './styles.css'
 
 const factorLabels = { form: 'Son form', time: 'Derece', weight: 'Kilo', recency: 'Dinlenme', gate: 'Start' }
+const emptyRace = { no: '-', time: '--:--', favorite: 'Veri bekleniyor', favorites: [], horses: [], confidence: 0, note: 'Canlı program alındığında detaylar burada görünecek.', type: 'Program bekleniyor', distance: '—' }
 
 function addDays(date, days) {
   const nextDate = new Date(date)
@@ -65,23 +66,61 @@ function horseAnalysisNote(horse, fallbackNote) {
   return `${horse.name}, ${factorLabels[factorKey].toLocaleLowerCase('tr-TR')} tarafında %${Math.round(factorValue * 100)} ile öne çıkıyor. Bağımsız skor %${Math.round((horse.independentScore || 0) * 100)} seviyesinde.`
 }
 
+function formatCurrency(value) {
+  return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', maximumFractionDigits: 0 }).format(value)
+}
+
+function generateCoupons(races) {
+  if (!races.length) return []
+
+  const legs = races.slice(0, 6)
+  const balancedSelections = legs.map((race) => {
+    const confidence = Math.round(race.horses?.[0]?.probability || race.confidence || 0)
+    return confidence >= 56 ? race.horses.slice(0, 1) : race.horses.slice(0, 2)
+  })
+  const aggressiveSelections = legs.map((race) => race.horses.slice(0, Math.round(race.horses?.[0]?.probability || 0) >= 63 ? 1 : 2))
+  const coverageSelections = legs.map((race) => race.horses.slice(0, Math.round(race.horses?.[0]?.probability || 0) >= 50 ? 2 : 3))
+
+  const buildCoupon = (name, game, selections, tag, multiplier) => {
+    const legsSummary = selections.map((selection, index) => `${legs[index]?.no}. ayak: ${selection.map((horse) => horse.name).join(' / ')}`)
+    const bankerCount = selections.filter((selection) => selection.length === 1).length
+    const confidence = Math.round(selections.reduce((total, selection) => total + (selection[0]?.probability || 0), 0) / selections.length)
+    return {
+      name,
+      game,
+      tag,
+      legs: legsSummary,
+      bankerCount,
+      chance: confidence,
+      cost: formatCurrency(Math.max(legs.length * multiplier * 3, selections.reduce((total, selection) => total * selection.length, 1) * multiplier)),
+    }
+  }
+
+  return [
+    buildCoupon('Korunaklı 6’lı', '6’lı Ganyan', coverageSelections, 'Daha geniş kapsama', 2),
+    buildCoupon('Dengeli 6’lı', '6’lı Ganyan', balancedSelections, 'Model dengesi', 1.5),
+    buildCoupon('Agresif Sprint', '5’li / Tek odak', aggressiveSelections.slice(0, 5), 'Yüksek getiri denemesi', 1),
+  ]
+}
+
 function App() {
   const [activeView, setActiveView] = useState('dashboard')
-  const [races, setRaces] = useState(demoRaces)
+  const [races, setRaces] = useState([])
   const [selectedCity, setSelectedCity] = useState('Bursa')
   const [selectedRace, setSelectedRace] = useState(0)
   const [selectedDayOffset, setSelectedDayOffset] = useState(0)
   const [selectedCoupon, setSelectedCoupon] = useState(0)
   const [selectedHorseIndex, setSelectedHorseIndex] = useState(0)
-  const [dataState, setDataState] = useState({ city: 'Bursa', source: 'demo', message: 'Canlı API bağlı değil. Arayüz demo veriyle çalışıyor.' })
+  const [dataState, setDataState] = useState({ city: 'Bursa', source: 'loading', message: 'Canlı TJK programı alınıyor.' })
   const [historyState, setHistoryState] = useState({ status: 'idle', name: '', entries: [], error: '' })
   const [archiveState, setArchiveState] = useState({ status: 'idle', analyses: [], error: '' })
   const [selectedArchiveIndex, setSelectedArchiveIndex] = useState(0)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [isRefreshingArchive, setIsRefreshingArchive] = useState(false)
   const [lastUpdated, setLastUpdated] = useState('12:42')
-  const race = races[selectedRace] || races[0] || { no: '-', favorite: 'Belirlenemedi', favorites: [], horses: [], confidence: 0, note: 'Veri bekleniyor.' }
-  const coupon = coupons[selectedCoupon]
+  const race = races[selectedRace] || races[0] || emptyRace
+  const generatedCoupons = useMemo(() => generateCoupons(races), [races])
+  const coupon = generatedCoupons[selectedCoupon] || generatedCoupons[0] || null
   const analyzedCount = races.filter((item) => item.confidence > 0).length
   const averageConfidence = races.length ? Math.round(races.reduce((total, item) => total + item.confidence, 0) / races.length) : 0
   const raceHorses = useMemo(() => {
@@ -96,6 +135,8 @@ function App() {
   const displayedNote = horseAnalysisNote(activeHorse, race.note)
   const selectedArchive = archiveState.analyses[selectedArchiveIndex] || archiveState.analyses[0] || null
   const archiveCities = new Set(archiveState.analyses.map((item) => item.city)).size
+  const topRace = races[0] || null
+  const strongestEdge = topRace?.horses?.[0] ? Math.max(0, Math.round((topRace.horses[0].probability || 0) - (topRace.horses[1]?.probability || 0))) : 0
   const dayOptions = useMemo(() => {
     const today = new Date()
     return [
@@ -105,6 +146,7 @@ function App() {
     ].map((item) => ({ ...item, apiDate: formatApiDate(item.date), shortDate: formatShortDate(item.date), longDate: formatLongDate(item.date) }))
   }, [])
   const selectedDay = dayOptions.find((item) => item.offset === selectedDayOffset) || dayOptions[1]
+  const hasLiveRaces = races.length > 0
 
   async function refreshProgram(city = selectedCity, dayOffset = selectedDayOffset) {
     const safeCity = isEventLike(city) ? selectedCity : normalizeCityInput(city, selectedCity)
@@ -116,6 +158,7 @@ function App() {
       setRaces(result.races)
       setDataState({ city: normalizeCityInput(result.city, safeCity), source: result.source, message: result.message })
       setSelectedRace(0)
+      setSelectedCoupon(0)
       setLastUpdated(new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }))
     } catch (error) {
       setDataState({ source: 'error', message: error.message })
@@ -146,6 +189,9 @@ function App() {
 
   useEffect(() => { refreshProgram(selectedCity, selectedDayOffset) }, [])
   useEffect(() => { setSelectedHorseIndex(0) }, [selectedRace, races])
+  useEffect(() => {
+    if (selectedCoupon >= generatedCoupons.length) setSelectedCoupon(0)
+  }, [generatedCoupons.length, selectedCoupon])
   useEffect(() => {
     if (activeView === 'history' && archiveState.status === 'idle') refreshArchive()
   }, [activeView])
@@ -195,7 +241,7 @@ function App() {
         <header className="topbar">
           <div className="mobile-brand"><span className="brand-mark">H</span> HorseRide</div>
           <div className="location"><span className="pin">⌖</span><div><small>{activeView === 'history' ? 'ARŞİV MODU' : 'AKTİF PROGRAM'}</small><strong>{activeView === 'history' ? 'Geçmiş analiz arşivi' : `${dataState.city} · ${selectedDay.longDate}`}</strong></div></div>
-          <div className={`data-state ${activeView === 'history' ? 'live' : dataState.source}`}><span className="data-state-dot" /><div><strong>{activeView === 'history' ? 'Arşiv görünümü' : dataState.source === 'live' ? 'Canlı veri' : dataState.source === 'error' ? 'Veri hatası' : 'Demo veri'}</strong><small>{lastUpdated} güncellendi</small></div></div>
+          <div className={`data-state ${activeView === 'history' ? 'live' : dataState.source}`}><span className="data-state-dot" /><div><strong>{activeView === 'history' ? 'Arşiv görünümü' : dataState.source === 'live' ? 'Canlı veri akıyor' : dataState.source === 'loading' ? 'Program yükleniyor' : 'Canlı veri bekleniyor'}</strong><small>{lastUpdated} güncellendi</small></div></div>
           <div className="header-actions"><button className="icon-button" title="Bildirimler">♢<i /></button><button className="profile">CA</button></div>
         </header>
 
@@ -234,22 +280,26 @@ function App() {
             </div>
           </>
           : <>
-            <section className="stats-strip">
+            <section className="stats-strip modern">
               <div><span>Toplam koşu</span><strong>{races.length}</strong><small>programda</small></div>
-              <div><span>Analiz tamamlandı</span><strong>{analyzedCount}<span className="muted">/{races.length}</span></strong><small>koşu</small></div>
+              <div><span>Analiz tamamlandı</span><strong>{analyzedCount}<span className="muted">/{Math.max(races.length, 1)}</span></strong><small>koşu</small></div>
               <div><span>Ortalama güven</span><strong className="green-text">{averageConfidence}%</strong><small>model skoru</small></div>
-              <div className="track-note"><span>Bugünün notu</span><strong>Sentetik pistte tempo yüksek.</strong><small>· Model bunu hesaba kattı</small></div>
+              <div className="track-note"><span>Günün en net koşusu</span><strong>{topRace ? `${topRace.no}. koşu · ${topRace.favorite}` : 'Canlı program bekleniyor'}</strong><small>· İlk iki at arasında %{strongestEdge} fark</small></div>
             </section>
 
             <div className="content-grid">
               <section className="panel races-panel">
-                <div className="panel-heading"><div><p className="eyebrow">PROGRAM</p><h2>{dataState.city} koşuları</h2></div><div className="panel-heading-meta"><span className="race-count">{String(selectedRace + 1).padStart(2, '0')} / {String(races.length).padStart(2, '0')}</span><span className={`live-badge ${dataState.source}`}><i /> {dataState.source === 'live' ? 'CANLI API' : 'DEMO PROGRAM'}</span></div></div>
-                <div className="race-list">{races.map((item, index) => <button key={item.no} onClick={() => setSelectedRace(index)} className={selectedRace === index ? 'race-row selected' : 'race-row'}><span className="race-number">{String(item.no).padStart(2, '0')}</span><span className="race-time">{item.time}</span><span className="race-info"><strong>{item.type}</strong><small>{item.distance} ·  {item.horseCount || item.favorites.length + 7} at</small></span><span className="race-favorite"><small>MODEL FAVORİSİ</small><strong>{item.favorite}</strong></span><span className="confidence"><b>{item.confidence}%</b><small>güven</small></span><span className="chevron">›</span></button>)}</div>
+                <div className="panel-heading"><div><p className="eyebrow">PROGRAM</p><h2>{dataState.city} koşuları</h2></div><div className="panel-heading-meta"><span className="race-count">{String(Math.min(selectedRace + 1, Math.max(races.length, 1))).padStart(2, '0')} / {String(Math.max(races.length, 1)).padStart(2, '0')}</span><span className={`live-badge ${dataState.source}`}><i /> {dataState.source === 'live' ? 'CANLI AKIŞ' : dataState.source === 'loading' ? 'YÜKLENİYOR' : 'VERİ BEKLENİYOR'}</span></div></div>
+                {hasLiveRaces
+                  ? <div className="race-list">{races.map((item, index) => <button key={item.no} onClick={() => setSelectedRace(index)} className={selectedRace === index ? 'race-row selected' : 'race-row'}><span className="race-number">{String(item.no).padStart(2, '0')}</span><span className="race-time">{item.time}</span><span className="race-info"><strong>{item.type}</strong><small>{item.distance} · {item.horseCount || item.favorites.length + 7} at</small></span><span className="race-favorite"><small>MODEL FAVORİSİ</small><strong>{item.favorite}</strong></span><span className="confidence"><b>{item.confidence}%</b><small>güven</small></span><span className="chevron">›</span></button>)}</div>
+                  : <div className="empty-panel"><strong>Canlı program henüz alınamadı.</strong><p>{dataState.message} Uygulama artık mock veri göstermiyor; gerçek program gelince tüm koşular otomatik dolacak.</p><button className="secondary-action" onClick={() => refreshProgram()}>Tekrar dene</button></div>}
                 <button className="all-races">Tüm koşu programını gör <span>→</span></button>
               </section>
 
               <section className="panel analysis-panel">
                 <div className="panel-heading"><div><p className="eyebrow">YAPAY ZEKA ANALİZİ</p><h2>{race.no}. koşu detayı</h2></div><span className="analysis-icon">✦</span></div>
+                {!hasLiveRaces && <div className="empty-analysis"><strong>Canlı veri gelmeden model çıktısı üretilmiyor.</strong><p>Hedefimiz günlük TJK programını, geçmiş yarışlar ve genişletilecek jokey/idman katmanlarıyla birleştirip her koşudaki en yüksek kazanma olasılığını göstermek. Şu an bağlantı tekrar denendiğinde veri otomatik gelecektir.</p></div>}
+                {hasLiveRaces && <>
                 <div className="analysis-hero"><div className="horse-silhouette">♞</div><div><small>SEÇİLİ AT</small><h3>{activeHorse?.name || race.favorite}</h3><p>{displayedNote}</p></div><strong className="big-confidence">{displayedConfidence}%<small>kazanma<br />olasılığı</small></strong></div>
                 <div className="probability"><div className="prob-head"><span>Olasılık dağılımı</span><small>Son form + derece + kilo · AGF hariç</small></div><div className="bar"><span style={{width: `${displayedConfidence}%`}} /></div><div className="prob-labels">{visibleFavorites.map((horse, index) => <span key={horse.name}><i className={`dot ${index === 0 ? 'green' : index === 1 ? 'orange' : 'gray'}`} /> {horse.name} <b>%{Math.round(horse.probability || 0)}</b></span>)}<span><i className="dot gray" /> Diğerleri <b>%{Math.max(0, 100 - visibleFavorites.reduce((total, horse) => total + Math.round(horse.probability || 0), 0))}</b></span></div></div>
                 <div className="horse-tags">{visibleFavorites.map((horse, i) => <button type="button" key={horse.name} onClick={() => setSelectedHorseIndex(i)} className={selectedHorseIndex === i ? 'horse-tag preferred' : 'horse-tag'}><b>{horse.rank || i + 1}</b>{horse.name}</button>)}</div>
@@ -281,12 +331,13 @@ function App() {
                   {historyState.status === 'ready' && historyState.entries.length > 0 && <><div className="history-stats"><div><span>Son kayıt</span><strong>{historyState.entries[0].date}</strong></div><div><span>Ortalama model</span><strong>%{averageHistoryProbability}</strong></div><div><span>İncelenen yarış</span><strong>{recentHistory.length}</strong></div></div><div className="history-list">{recentHistory.map((entry) => <div className="history-row" key={`${entry.date}-${entry.city}-${entry.raceNo}`}><div><strong>{entry.date}</strong><small>{entry.city} · {entry.raceNo}. koşu · {entry.distance || 'Mesafe yok'}</small></div><div><b>%{Math.round(entry.probability || 0)}</b><small>{entry.jockey || 'Jokey yok'}</small></div></div>)}</div></>}
                 </div>
                 <button className="detail-button">Detaylı analizi aç <span>↗</span></button>
+                </>}
               </section>
             </div>
 
-            <section className="coupon-section"><div className="section-title"><div><p className="eyebrow">AKILLI KUPONLAR</p><h2>Bugün için hazır kombinasyonlar</h2></div><p>Modelin risk ve bütçe dengesine göre oluşturduğu seçenekler</p></div><div className="coupon-grid">{coupons.map((item, index) => <button key={item.name} onClick={() => setSelectedCoupon(index)} className={selectedCoupon === index ? 'coupon-card selected' : 'coupon-card'}><div className="coupon-top"><span className="coupon-tag">{item.tag}</span><span className="coupon-arrow">↗</span></div><h3>{item.name}</h3><p>{item.game} <span>·</span> {item.legs}</p><div className="coupon-bottom"><div><strong>{item.chance}%</strong><small>modelin tutma<br />olasılığı</small></div><span className="cost">{item.cost}</span></div></button>)}</div><div className="coupon-summary"><span className="summary-icon">✓</span><div><strong>{coupon.name} seçildi</strong><small>{coupon.game} · Tahmini kupon tutma olasılığı %{coupon.chance} · {coupon.cost}</small></div><button>Kuponu incele <span>→</span></button></div><div className="disclaimer"><span>ⓘ</span><p>{dataState.message} Bu oranlar geçmiş performans ve model tahminidir; kesin sonuç veya kazanç garantisi değildir.</p><button>Model metodolojisi →</button></div></section>
+            <section className="coupon-section"><div className="section-title"><div><p className="eyebrow">AKILLI KUPONLAR</p><h2>Canlı veriden üretilen kombinasyonlar</h2></div><p>Bugünkü analiz güvenlerine göre otomatik oluşturulmuş öneriler</p></div>{generatedCoupons.length > 0 ? <><div className="coupon-grid">{generatedCoupons.map((item, index) => <button key={item.name} onClick={() => setSelectedCoupon(index)} className={selectedCoupon === index ? 'coupon-card selected modern-coupon' : 'coupon-card modern-coupon'}><div className="coupon-top"><span className="coupon-tag">{item.tag}</span><span className="coupon-arrow">↗</span></div><h3>{item.name}</h3><p>{item.game} <span>·</span> {item.bankerCount} bankolu yapı</p><div className="coupon-bottom"><div><strong>{item.chance}%</strong><small>ortalama favori<br />güveni</small></div><span className="cost">{item.cost}</span></div></button>)}</div><div className="coupon-summary live-summary"><span className="summary-icon">✓</span><div><strong>{coupon?.name} seçildi</strong><small>{coupon?.game} · Tahmini güven %{coupon?.chance} · {coupon?.cost}</small></div><button>Kuponu incele <span>→</span></button></div>{coupon && <div className="ticket-lab"><div className="ticket-lab-head"><strong>Kupon laboratuvarı</strong><small>Her ayak için modelin seçtiği atlar</small></div><div className="ticket-legs">{coupon.legs.map((leg) => <div className="ticket-leg" key={leg}><span>{leg.split(':')[0]}</span><strong>{leg.split(': ')[1]}</strong></div>)}</div></div>}</> : <div className="empty-panel coupon-empty"><strong>Kupon üretmek için canlı yarış programı gerekli.</strong><p>Gerçek veri geldiğinde sistem tüm koşular için olasılıkları hesaplayıp bankolu ve korunaklı kuponları otomatik çıkaracak.</p></div>}<div className="disclaimer"><span>ⓘ</span><p>{dataState.message} Bugünkü hedef, canlı TJK programını geçmiş yarışlar, jokey/idman/veri genişlemeleri ve model tahminleriyle tek ekranda birleştirmek.</p><button>Model metodolojisi →</button></div></section>
           </>}
-        <footer><span>HorseRide Intelligence v0.1</span><span>Veri kaynağı: {activeView === 'history' ? 'yerel analiz arşivi' : dataState.source === 'live' ? 'bağlı API' : 'demo veri'} · Sorumlu oyun</span></footer>
+        <footer><span>HorseRide Intelligence v0.1</span><span>Veri kaynağı: {activeView === 'history' ? 'yerel analiz arşivi' : dataState.source === 'live' ? 'otomatik TJK çekimi' : 'canlı veri bekleniyor'} · Sorumlu oyun</span></footer>
       </main>
     </div>
   )
