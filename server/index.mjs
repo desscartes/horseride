@@ -1,5 +1,6 @@
 import { createServer } from 'node:http'
 import { URL } from 'node:url'
+import { TjkApi } from 'tjk-api'
 import { databaseHealth, findHorseHistory, listRecentAnalyses, saveProgram } from './database.mjs'
 
 const port = Number(process.env.PORT || 8787)
@@ -7,6 +8,7 @@ const defaultCity = process.env.TJK_CITY || 'Tümü'
 const domesticProgramCities = (process.env.TJK_CITIES || 'İstanbul,Ankara,İzmir,Bursa,Adana,Kocaeli,Antalya,Diyarbakır,Elazığ,Şanlıurfa').split(',').map((value) => value.trim()).filter(Boolean)
 const foreignProgramCities = (process.env.TJK_FOREIGN_CITIES || 'Yurtdışı').split(',').map((value) => value.trim()).filter(Boolean)
 const allProgramCities = [...new Set([...domesticProgramCities, ...foreignProgramCities])]
+const tjkApi = new TjkApi({ authKey: process.env.TJK_AUTH_KEY || '' })
 
 function formatDate(date) {
   const year = date.getFullYear()
@@ -76,9 +78,26 @@ function normalizeText(value) {
     .replace(/\p{Diacritic}/gu, '')
 }
 
+function isAllCitySelection(value) {
+  return ['tumu', 'tum', 'hepsi', 'all'].includes(normalizeText(value))
+}
+
+function isForeignCitySelection(value) {
+  const normalized = normalizeText(value)
+  return foreignProgramCities.some((item) => normalizeText(item) === normalized)
+}
+
 function isLikelyHtmlDocument(text, contentType = '') {
   const preview = String(text || '').slice(0, 500).toLocaleLowerCase('tr-TR')
   return contentType.includes('text/html') || preview.includes('<html') || preview.includes('<!doctype html') || preview.includes('<body')
+}
+
+function matchesVenueSelection(target, ...candidates) {
+  const normalizedTarget = normalizeText(target)
+  return candidates.some((candidate) => {
+    const normalizedCandidate = normalizeText(candidate)
+    return normalizedCandidate && (normalizedCandidate === normalizedTarget || normalizedCandidate.includes(normalizedTarget) || normalizedTarget.includes(normalizedCandidate))
+  })
 }
 
 function formScore(form) {
@@ -193,7 +212,7 @@ async function fetchProgram(date, city) {
   const sources = buildProgramSources(date, city)
   const errors = []
   const normalizedCity = normalizeText(city)
-  const isForeignRequest = foreignProgramCities.some((item) => normalizeText(item) === normalizedCity)
+  const isForeignRequest = isForeignCitySelection(city)
 
   for (const source of sources) {
     try {
@@ -224,8 +243,62 @@ async function fetchProgram(date, city) {
   throw new Error(errors.join(' | '))
 }
 
-async function fetchPrograms(date, citySelection) {
-  const wantsAll = ['Tümü', 'Tum', 'Hepsi', 'all'].includes(citySelection)
+function mapOfficialHorse(horse) {
+  const totalWeight = [horse.weight, horse.extraWeight].filter((value) => Number.isFinite(value)).reduce((sum, value) => sum + value, 0)
+  return {
+    no: Number(horse.no),
+    name: horse.name || 'Bilinmeyen at',
+    age: horse.age || '',
+    sire: horse.father?.name || '',
+    dam: horse.mother?.name || '',
+    weight: totalWeight || horse.weight || null,
+    jockey: horse.jockey?.name || 'Bilinmiyor',
+    owner: horse.owner?.name || '',
+    trainer: horse.trainer?.name || '',
+    start: Number.isFinite(horse.position) ? horse.position : null,
+    lastSix: horse.last6 || '',
+    daysSinceRace: parseNumber(horse.daysOff),
+    bestTimeSeconds: parseTime(horse.bestGrade?.timing),
+  }
+}
+
+async function fetchProgramsFromOfficialApi(date, citySelection) {
+  const expectedDate = formatDate(date).iso
+  const wantsAll = isAllCitySelection(citySelection)
+  const wantsForeignOnly = isForeignCitySelection(citySelection)
+  const response = await tjkApi.getProgram({ date })
+  const meetings = Array.isArray(response?.data) ? response.data : []
+
+  const filteredMeetings = meetings.filter((meeting) => {
+    if (meeting.date !== expectedDate) return false
+    if (wantsAll) return true
+    if (wantsForeignOnly) return Boolean(meeting.abroad)
+    return !meeting.abroad && matchesVenueSelection(citySelection, meeting.location, meeting.hippodrome)
+  })
+
+  const races = filteredMeetings.flatMap((meeting) => (meeting.runs || []).map((run) => scoreRace({
+    no: Number(run.no),
+    time: String(run.startTime || '').replace(':', '.'),
+    venue: meeting.location || meeting.hippodrome || citySelection,
+    type: run.runName || run.groupName || run.shortedName || 'Koşu',
+    conditions: [run.groupName, run.condition, run.info].filter(Boolean).join(' · '),
+    distance: run.runway?.distance ? `${run.runway.distance}m` : '',
+    surface: run.runway?.name || '',
+    horses: (run.horses || []).filter((horse) => !horse.outOfRace).map(mapOfficialHorse),
+  }))).filter((race) => race.horses?.length)
+
+  if (!races.length) throw new Error('Resmi TJK API seçilen gün ve filtre için koşu döndürmedi.')
+
+  return {
+    city: wantsAll ? 'Tüm program' : citySelection,
+    providerUrls: ['official_tjk_api'],
+    races: races.map((race) => ({ ...race, city: race.venue || citySelection, track: race.venue || citySelection })),
+    failures: [],
+  }
+}
+
+async function fetchProgramsFromCsv(date, citySelection) {
+  const wantsAll = isAllCitySelection(citySelection)
   const cities = wantsAll ? allProgramCities : [citySelection]
   const settled = await Promise.allSettled(cities.map(async (city) => {
     const result = await fetchProgram(date, city)
@@ -257,6 +330,23 @@ async function fetchPrograms(date, citySelection) {
     providerUrls: successes.map((entry) => entry.providerUrl),
     races,
     failures,
+  }
+}
+
+async function fetchPrograms(date, citySelection) {
+  const failures = []
+
+  try {
+    return await fetchProgramsFromOfficialApi(date, citySelection)
+  } catch (error) {
+    failures.push({ city: citySelection, error: `official_api: ${error.message}` })
+  }
+
+  try {
+    const csvResult = await fetchProgramsFromCsv(date, citySelection)
+    return { ...csvResult, failures: [...failures, ...csvResult.failures] }
+  } catch (error) {
+    throw new Error([...failures.map((item) => `${item.city}: ${item.error}`), error.message].join(' | '))
   }
 }
 
