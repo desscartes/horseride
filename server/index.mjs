@@ -69,6 +69,18 @@ function extractSurface(cells, startIndex = 0) {
   return cells.slice(startIndex).find((cell) => /^(Çim|Kum|Sentetik)$/i.test(cell)) || ''
 }
 
+function normalizeText(value) {
+  return String(value || '')
+    .toLocaleLowerCase('tr-TR')
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+}
+
+function isLikelyHtmlDocument(text, contentType = '') {
+  const preview = String(text || '').slice(0, 500).toLocaleLowerCase('tr-TR')
+  return contentType.includes('text/html') || preview.includes('<html') || preview.includes('<!doctype html') || preview.includes('<body')
+}
+
 function formScore(form) {
   const values = String(form || '').match(/[0-9]/g) || []
   if (!values.length) return 0.5
@@ -112,6 +124,7 @@ function parseCsv(text) {
   let current = null
   let readingHorses = false
   let meetingDate = null
+  let horseHeaderSeen = false
 
   for (const line of lines) {
     const cells = line.split(';').map((cell) => cell.trim())
@@ -134,7 +147,7 @@ function parseCsv(text) {
       continue
     }
     if (!current) continue
-    if (cells[0] === 'At No') { readingHorses = true; continue }
+    if (cells[0] === 'At No') { readingHorses = true; horseHeaderSeen = true; continue }
     if (!readingHorses || !/^\d+$/.test(cells[0])) continue
 
     current.horses.push({
@@ -154,7 +167,7 @@ function parseCsv(text) {
     })
   }
   if (current) races.push(scoreRace(current))
-  return { meetingDate, races }
+  return { meetingDate, races, horseHeaderSeen }
 }
 
 function buildProgramSources(date, city) {
@@ -179,16 +192,28 @@ async function fetchProgram(date, city) {
   const expectedDate = formatDate(date).iso
   const sources = buildProgramSources(date, city)
   const errors = []
+  const normalizedCity = normalizeText(city)
+  const isForeignRequest = foreignProgramCities.some((item) => normalizeText(item) === normalizedCity)
 
   for (const source of sources) {
     try {
       const response = await fetch(source.url, { headers: { 'User-Agent': 'HorseRide/0.1 data research' } })
       if (!response.ok) throw new Error(`TJK CSV ${response.status} döndürdü.`)
       const text = Buffer.from(await response.arrayBuffer()).toString('utf8')
+      if (isLikelyHtmlDocument(text, response.headers.get('content-type') || '')) {
+        throw new Error('CSV yerine HTML yanıtı döndü.')
+      }
       const parsed = parseCsv(text)
       if (!parsed.races.length) throw new Error('Program dosyasında koşu bulunamadı.')
+      if (!parsed.horseHeaderSeen) throw new Error('Program dosyasında at tablosu bulunamadı.')
       if (parsed.meetingDate && parsed.meetingDate !== expectedDate) {
         throw new Error(`İstenen tarih ${expectedDate}, gelen dosya ${parsed.meetingDate}.`)
+      }
+      if (!isForeignRequest) {
+        const mismatchedRace = parsed.races.find((race) => race.venue && normalizeText(race.venue) !== normalizedCity)
+        if (mismatchedRace) {
+          throw new Error(`Beklenen hipodrom ${city}, gelen kayıt ${mismatchedRace.venue}.`)
+        }
       }
       return { url: source.url, races: parsed.races, meetingDate: parsed.meetingDate || expectedDate }
     } catch (error) {
@@ -224,6 +249,7 @@ async function fetchPrograms(date, citySelection) {
 
   const races = successes
     .flatMap((entry) => entry.races)
+    .filter((race, index, items) => items.findIndex((candidate) => candidate.city === race.city && candidate.no === race.no && candidate.time === race.time) === index)
     .sort((left, right) => parseClock(left.time) - parseClock(right.time) || left.city.localeCompare(right.city, 'tr') || left.no - right.no)
 
   return {
