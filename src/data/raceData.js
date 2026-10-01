@@ -1,17 +1,11 @@
-export const demoRaces = [
-  { no: 1, time: '14:00', track: 'İstanbul', distance: '1400 m', type: 'Şartlı 4', confidence: 78, favorite: 'Kuzey Rüzgarı', favorites: ['Kuzey Rüzgarı', 'Mavi Ateş', 'Lal Bahar'], note: 'Start çizgisindeki istikrarı ve sentetik pistteki son iki derecesi öne çıkıyor.' },
-  { no: 2, time: '14:30', track: 'İstanbul', distance: '1600 m', type: 'Handikap 15', confidence: 65, favorite: 'Ay Işığı', favorites: ['Ay Işığı', 'Gölge Avcısı', 'Safir Kanat'], note: 'Mesafe uyumu güçlü. Jokey değişikliği olumlu sinyal veriyor.' },
-  { no: 3, time: '15:00', track: 'İstanbul', distance: '1200 m', type: 'Maiden', confidence: 71, favorite: 'Lodos Kızı', favorites: ['Lodos Kızı', 'Kırmızı Hilal', 'Yelkovan'], note: 'İlk koşusundaki hızlanma verisi ve hafif kilo avantajı modeli yukarı taşıyor.' },
-  { no: 4, time: '15:30', track: 'İstanbul', distance: '2000 m', type: 'Şartlı 3', confidence: 58, favorite: 'Demir Pençe', favorites: ['Demir Pençe', 'Güzel İz', 'Beyaz Bulut'], note: 'Uzun mesafede dayanıklılık dengeli; yarışın temposu sonucu belirleyebilir.' },
-]
-
-export const coupons = [
-  { name: 'Dengeli 6’lı', game: '6’lı Ganyan', chance: 18, cost: '₺48', legs: '1-2-3-4-5-6', tag: 'En çok tercih edilen' },
-  { name: 'Cesur 5’li', game: '5’li Ganyan', chance: 11, cost: '₺24', legs: '2-3-4-5-6', tag: 'Yüksek getiri' },
-  { name: 'Tekli Sprint', game: 'Ganyan', chance: 42, cost: '₺12', legs: '1. koşu', tag: 'Düşük risk' },
-]
-
 const apiUrl = import.meta.env.VITE_RACE_API_URL || '/api/races'
+
+function buildApiUrl(pathname) {
+  const url = new URL(apiUrl, window.location.origin)
+  url.pathname = pathname
+  url.search = ''
+  return url
+}
 
 function normalizeLiveRaces(payload) {
   return payload.races.map((race) => {
@@ -19,6 +13,7 @@ function normalizeLiveRaces(payload) {
     return {
       ...race,
       distance: race.distance || race.conditions?.split(' · ')[2] || '',
+      horses: race.horses.map((horse, index) => ({ ...horse, rank: index + 1 })),
       favorites: race.horses.slice(0, 3).map((horse) => horse.name),
       horseCount: race.horses.length,
       favorite: favorite?.name || 'Belirlenemedi',
@@ -29,18 +24,68 @@ function normalizeLiveRaces(payload) {
   })
 }
 
-export async function loadRaceProgram(city = 'Bursa') {
+export async function loadRaceProgram(city = 'Tümü', date = null) {
   try {
-    const url = new URL(apiUrl, window.location.origin)
+    const url = buildApiUrl('/api/races')
     url.searchParams.set('city', city)
+    if (date) url.searchParams.set('date', date)
     const response = await fetch(url)
     if (!response.ok) throw new Error(`Yarış servisi ${response.status} döndürdü.`)
 
     const payload = await response.json()
     if (!Array.isArray(payload.races)) throw new Error('Yarış servisi beklenen formatta veri döndürmedi.')
 
-    return { races: normalizeLiveRaces(payload), city: payload.city || city, source: 'live', message: 'TJK CSV canlı verisi kullanılıyor. AGF modele dahil edilmedi; jokey geçmiş servisi henüz bağlanmadı.' }
+    const warning = Array.isArray(payload.failures) && payload.failures.length
+      ? ` Bazı merkezler şu an yanıt vermiyor: ${payload.failures.slice(0, 3).map((item) => item.city).join(', ')}.`
+      : ''
+    return {
+      races: normalizeLiveRaces(payload),
+      city: payload.city || city,
+      source: 'live',
+      providerSource: payload.source || 'unknown',
+      providerUrls: payload.providerUrls || [],
+      failures: payload.failures || [],
+      message: `TJK programı otomatik alındı.${warning} AGF hariç ilk model aktif; jokey, idman ve daha derin geçmiş katmanları sıradaki veri genişlemesi olarak bekliyor.`,
+    }
   } catch (error) {
-    return { races: demoRaces, city, source: 'demo', message: `Canlı veri alınamadı: ${error.message} Demo veri gösteriliyor.` }
+    return { races: [], city, source: 'unavailable', providerSource: 'unavailable', providerUrls: [], failures: [], message: `Canlı TJK verisi alınamadı: ${error.message}` }
   }
+}
+
+export async function loadRaceDebug(city = 'Tümü', date = null) {
+  const url = buildApiUrl('/api/debug/races')
+  url.searchParams.set('city', city)
+  if (date) url.searchParams.set('date', date)
+
+  const response = await fetch(url)
+  if (!response.ok) throw new Error(`Debug servis ${response.status} döndürdü.`)
+
+  const payload = await response.json()
+  if (!payload || typeof payload !== 'object') throw new Error('Debug servis beklenen formatta veri döndürmedi.')
+
+  return payload
+}
+
+export async function loadHorseHistory(name) {
+  const url = buildApiUrl('/api/history/horse')
+  url.searchParams.set('name', name)
+
+  const response = await fetch(url)
+  if (!response.ok) throw new Error(`Geçmiş servis ${response.status} döndürdü.`)
+
+  const payload = await response.json()
+  if (!Array.isArray(payload.entries)) throw new Error('Geçmiş servis beklenen formatta veri döndürmedi.')
+
+  return { name: payload.name || name, entries: payload.entries }
+}
+
+export async function loadRecentAnalyses() {
+  const url = buildApiUrl('/api/history/races')
+  const response = await fetch(url)
+  if (!response.ok) throw new Error(`Arşiv servis ${response.status} döndürdü.`)
+
+  const payload = await response.json()
+  if (!Array.isArray(payload.analyses)) throw new Error('Arşiv servis beklenen formatta veri döndürmedi.')
+
+  return payload.analyses
 }

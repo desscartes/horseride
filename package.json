@@ -18,9 +18,9 @@
     "@capacitor/cli": "latest",
     "@capacitor/core": "latest",
     "@vitejs/plugin-react": "latest",
-    "vite": "latest",
     "react": "latest",
-    "react-dom": "latest"
-  },
-  "devDependencies": {}
+    "react-dom": "latest",
+    "tjk-api": "^1.0.4",
+    "vite": "latest"
+  }
 }
