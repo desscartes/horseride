@@ -151,6 +151,7 @@ function App() {
   const liveCities = useMemo(() => [...new Set(races.map((item) => item.city).filter(Boolean))], [races])
   const debugMeetings = debugState.payload?.official?.meetings?.filter((item) => item.included) || []
   const debugCsvAttempts = debugState.payload?.csv?.flatMap((entry) => entry.attempts || []) || []
+  const debugLiveResult = debugState.payload?.liveResult || null
 
   function showCouponLab() {
     setActiveView('dashboard')
@@ -312,9 +313,25 @@ function App() {
               <div className="track-note"><span>Günün en net koşusu</span><strong>{topRace ? `${topRace.city ? `${topRace.city} · ` : ''}${topRace.no}. koşu · ${topRace.favorite}` : 'Canlı program bekleniyor'}</strong><small>· İlk iki at arasında %{strongestEdge} fark · Kaynak: {dataState.providerSource}</small></div>
             </section>
 
+            <section className="panel live-debug-banner">
+             <div className="panel-heading">
+               <div><p className="eyebrow">CANLI VERİ ÖZETİ</p><h2>Kaynak, filtre ve eksik akışlar</h2></div>
+               <span className="analysis-icon">⌘</span>
+             </div>
+             <div className="debug-grid compact">
+               <div className="debug-card"><span>Seçim</span><strong>{selectedCity}</strong><small>{selectedDay.longDate}</small></div>
+               <div className="debug-card"><span>Backend kaynak</span><strong>{dataState.providerSource}</strong><small>{dataState.providerUrls[0] || 'URL yok'}</small></div>
+               <div className="debug-card"><span>Eşleşen meeting</span><strong>{debugMeetings.length}</strong><small>{debugState.payload?.official?.meetingsReceived ?? 0} kayıttan filtrelendi</small></div>
+               <div className="debug-card"><span>Sonuç</span><strong>{debugLiveResult?.ok ? `${debugLiveResult.raceCount} koşu` : 'Hata'}</strong><small>{debugLiveResult?.error || `${liveCities.length || 0} şehir görünür`}</small></div>
+             </div>
+             {dataState.failures.length > 0 && <div className="debug-list inline"><strong>Düşen merkezler</strong>{dataState.failures.map((item) => <span key={`${item.city}-${item.error}`}>{item.city}: {item.error}</span>)}</div>}
+             {debugState.payload && <details className="debug-raw"><summary>Ham teşhis çıktısını göster</summary><pre>{JSON.stringify(debugState.payload, null, 2)}</pre></details>}
+            </section>
+
             <div className="content-grid">
               <section className="panel races-panel">
                 <div className="panel-heading"><div><p className="eyebrow">PROGRAM</p><h2>{dataState.city} yarış akışı</h2></div><div className="panel-heading-meta"><span className="race-count">{String(Math.min(selectedRace + 1, Math.max(races.length, 1))).padStart(2, '0')} / {String(Math.max(races.length, 1)).padStart(2, '0')}</span><span className={`live-badge ${dataState.source}`}><i /> {dataState.source === 'live' ? 'CANLI AKIŞ' : dataState.source === 'loading' ? 'YÜKLENİYOR' : 'VERİ BEKLENİYOR'}</span></div></div>
+                {debugState.payload?.requested && <div className="panel-inline-note">Filtre: {debugState.payload.requested.city} · CSV denenen merkezler: {(debugState.payload.requested.csvCities || []).join(', ')}</div>}
                 {hasLiveRaces
                   ? <div className="race-list">{races.map((item, index) => <button key={`${item.city || dataState.city}-${item.no}-${item.time}`} onClick={() => setSelectedRace(index)} className={selectedRace === index ? 'race-row selected' : 'race-row'}><span className="race-number">{String(item.no).padStart(2, '0')}</span><span className="race-time">{item.time}</span><span className="race-info"><strong>{item.type}</strong><small>{item.city ? `${item.city} · ` : ''}{item.distance} · {item.horseCount || item.favorites.length + 7} at</small></span><span className="race-favorite"><small>MODEL FAVORİSİ</small><strong>{item.favorite}</strong></span><span className="confidence"><b>{item.confidence}%</b><small>güven</small></span><span className="chevron">›</span></button>)}</div>
                   : <div className="empty-panel"><strong>Canlı program henüz alınamadı.</strong><p>{dataState.message} Uygulama artık mock veri göstermiyor; gerçek program gelince tüm koşular otomatik dolacak.</p><button className="secondary-action" onClick={() => refreshProgram()}>Tekrar dene</button></div>}
