@@ -31,6 +31,13 @@ function parseNumber(value) {
   return Number.isFinite(number) ? number : null
 }
 
+function parseAgf(value) {
+  const match = String(value || '').match(/%\s*(\d+(?:[.,]\d+)?)/)
+  if (!match) return null
+  const share = Number.parseFloat(match[1].replace(',', '.'))
+  return Number.isFinite(share) && share >= 0 && share <= 100 ? share : null
+}
+
 function parseTime(value) {
   const match = String(value || '').match(/(\d+)[.:](\d+)[.:](\d+)/)
   if (!match) return null
@@ -490,6 +497,7 @@ function parseCsv(text) {
         dam: findCsvColumn(cells, 'Orijin(Anne)'),
         weight: findCsvColumn(cells, 'Kilo'),
         jockey: findCsvColumn(cells, 'Jokey Adı'),
+        agf: findCsvColumn(cells, 'AGF'),
         owner: findCsvColumn(cells, 'Sahip Adı'),
         trainer: findCsvColumn(cells, 'Antrenör Adı'),
         start: findCsvColumn(cells, 'St'),
@@ -512,6 +520,7 @@ function parseCsv(text) {
       dam: read('dam'),
       weight: parseNumber(read('weight')),
       jockey: read('jockey') || 'Bilinmiyor',
+      marketShare: parseAgf(read('agf')),
       owner: read('owner'),
       trainer: read('trainer'),
       start: parseNumber(read('start')),
@@ -1085,7 +1094,10 @@ async function createDailyAnalysis(date, city) {
   const apiKey = process.env.OPENAI_API_KEY
   if (!apiKey) throw Object.assign(new Error('Günlük AI analizi için sunucuda OPENAI_API_KEY tanımlanmalı.'), { status: 503 })
 
-  const races = getProgramForAnalysis(date, city)
+  const races = getProgramForAnalysis(date, city).map((race) => ({
+    ...race,
+    horses: race.horses.map(({ marketShare, ...horse }) => horse),
+  }))
   if (!races.length) throw Object.assign(new Error('Önce bu günün yarış programını çekip SQLite’a kaydetmelisiniz.'), { status: 409 })
   const model = process.env.OPENAI_MODEL || 'gpt-6-luna'
   const input = `Analyze the race data below and return the result as JSON only.\n${JSON.stringify({ date, city, races })}`

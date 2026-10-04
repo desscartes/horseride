@@ -43,6 +43,7 @@ database.exec(`
     best_time_seconds REAL,
     independent_score REAL,
     probability REAL,
+    market_share REAL,
     PRIMARY KEY (race_id, horse_id),
     FOREIGN KEY (race_id) REFERENCES races(id),
     FOREIGN KEY (horse_id) REFERENCES horses(id)
@@ -112,6 +113,8 @@ if (!backtestColumns.some((column) => column.name === 'walk_forward_probability'
 if (!backtestColumns.some((column) => column.name === 'jockey')) database.exec('ALTER TABLE backtest_entries ADD COLUMN jockey TEXT')
 if (!backtestColumns.some((column) => column.name === 'race_surface')) database.exec('ALTER TABLE backtest_entries ADD COLUMN race_surface TEXT')
 if (!backtestColumns.some((column) => column.name === 'race_breed')) database.exec('ALTER TABLE backtest_entries ADD COLUMN race_breed TEXT')
+const raceEntryColumns = database.prepare('PRAGMA table_info(race_entries)').all()
+if (!raceEntryColumns.some((column) => column.name === 'market_share')) database.exec('ALTER TABLE race_entries ADD COLUMN market_share REAL')
 
 const raceStatement = database.prepare(`
   INSERT INTO races (id, date, city, race_no, time, type, distance, surface, conditions, provider_url, fetched_at)
@@ -120,9 +123,9 @@ const raceStatement = database.prepare(`
 `)
 const horseStatement = database.prepare('INSERT INTO horses (id, name) VALUES (?, ?) ON CONFLICT(name) DO NOTHING')
 const entryStatement = database.prepare(`
-  INSERT INTO race_entries (race_id, horse_id, horse_no, age, sire, dam, weight, jockey, trainer, start_number, last_six, days_since_race, best_time_seconds, independent_score, probability)
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  ON CONFLICT(race_id, horse_id) DO UPDATE SET jockey=excluded.jockey, trainer=excluded.trainer, weight=excluded.weight, start_number=excluded.start_number, last_six=excluded.last_six, days_since_race=excluded.days_since_race, best_time_seconds=excluded.best_time_seconds, independent_score=excluded.independent_score, probability=excluded.probability
+  INSERT INTO race_entries (race_id, horse_id, horse_no, age, sire, dam, weight, jockey, trainer, start_number, last_six, days_since_race, best_time_seconds, independent_score, probability, market_share)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  ON CONFLICT(race_id, horse_id) DO UPDATE SET jockey=excluded.jockey, trainer=excluded.trainer, weight=excluded.weight, start_number=excluded.start_number, last_six=excluded.last_six, days_since_race=excluded.days_since_race, best_time_seconds=excluded.best_time_seconds, independent_score=excluded.independent_score, probability=excluded.probability, market_share=excluded.market_share
 `)
 const entrySourceStatement = database.prepare(`
   INSERT INTO race_entry_sources (race_id, horse_id, source_json)
@@ -179,7 +182,7 @@ export function saveProgram({ city, date, fetchedAt, providerUrl, races, rawSour
     for (const horse of race.horses) {
       const id = horseId(horse.name)
       horseStatement.run(id, horse.name)
-      entryStatement.run(raceId, id, horse.no, horse.age, horse.sire, horse.dam, horse.weight, horse.jockey, horse.trainer, horse.start, horse.lastSix, horse.daysSinceRace, horse.bestTimeSeconds, horse.independentScore, horse.probability)
+      entryStatement.run(raceId, id, horse.no, horse.age, horse.sire, horse.dam, horse.weight, horse.jockey, horse.trainer, horse.start, horse.lastSix, horse.daysSinceRace, horse.bestTimeSeconds, horse.independentScore, horse.probability, horse.marketShare)
       if (horse.sourceData) entrySourceStatement.run(raceId, id, JSON.stringify(horse.sourceData))
     }
   }
@@ -293,7 +296,7 @@ export function getProgramForAnalysis(date, city) {
     SELECT r.id AS raceId, r.city, r.race_no AS raceNo, r.time, r.type, r.distance, r.surface, r.conditions,
       e.horse_no AS horseNo, h.name AS horseName, e.age, e.sire, e.dam, e.weight, e.jockey, e.trainer,
       e.start_number AS start, e.last_six AS lastSix, e.days_since_race AS daysSinceRace,
-      e.best_time_seconds AS bestTimeSeconds, e.independent_score AS independentScore, e.probability,
+      e.best_time_seconds AS bestTimeSeconds, e.independent_score AS independentScore, e.probability, e.market_share AS marketShare,
       s.source_json AS sourceJson
     FROM races r
     JOIN race_entries e ON e.race_id = r.id
@@ -361,6 +364,7 @@ export function getProgramForAnalysis(date, city) {
       bestTimeSeconds: entry.bestTimeSeconds,
       independentScore: entry.independentScore,
       probability: entry.probability,
+      marketShare: entry.marketShare,
       baselineProbability: entry.probability,
       horsePerformance: tjk.horsePerformance || null,
       jockeyPerformance: tjk.jockeyPerformance || null,
