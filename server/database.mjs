@@ -2,6 +2,8 @@ import { createHash } from 'node:crypto'
 import { mkdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
+import { parseWeight } from './data-quality.mjs'
+import { summarizeWorkoutHistory } from './workout-history.mjs'
 
 const databasePath = resolve(process.env.HORSERIDE_DB || 'data/horseride.sqlite')
 mkdirSync(dirname(databasePath), { recursive: true })
@@ -105,6 +107,20 @@ database.exec(`
     model_version TEXT NOT NULL,
     created_at TEXT NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS daily_ai_batches (
+    input_hash TEXT PRIMARY KEY, record_json TEXT NOT NULL, created_at TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS forecast_snapshots (
+    id TEXT PRIMARY KEY, date TEXT NOT NULL, city TEXT NOT NULL, race_no INTEGER NOT NULL,
+    source TEXT NOT NULL, model_version TEXT NOT NULL, captured_at TEXT NOT NULL,
+    scheduled_start TEXT NOT NULL, input_hash TEXT NOT NULL, picks_json TEXT NOT NULL,
+    UNIQUE(date, city, race_no, source, input_hash)
+  );
+  CREATE TABLE IF NOT EXISTS historical_race_data (
+    date TEXT NOT NULL, city TEXT NOT NULL, race_no INTEGER NOT NULL,
+    race_json TEXT NOT NULL, results_json TEXT NOT NULL, fetched_at TEXT NOT NULL,
+    PRIMARY KEY(date, city, race_no)
+  );
 `)
 
 const backtestColumns = database.prepare('PRAGMA table_info(backtest_entries)').all()
@@ -178,11 +194,18 @@ export function saveProgram({ city, date, fetchedAt, providerUrl, races, rawSour
   for (const race of races) {
     const raceCity = race.city || city
     const raceId = `${date}:${raceCity}:${race.no}`
-    raceStatement.run(raceId, date, raceCity, race.no, race.time, race.type, race.distance, race.surface, race.conditions, providerUrl, fetchedAt)
+    raceStatement.run(...[raceId, date, raceCity, race.no, race.time, race.type, race.distance, race.surface, race.conditions, providerUrl, fetchedAt].map(value=>value??null))
+    // A withdrawn runner must not survive in SQLite after the official field changes.
+    const activeIds = new Set(race.horses.map(horse=>horseId(horse.name)))
+    for (const old of database.prepare('SELECT horse_id FROM race_entries WHERE race_id=?').all(raceId)) {
+      if (activeIds.has(old.horse_id)) continue
+      database.prepare('DELETE FROM race_entry_sources WHERE race_id=? AND horse_id=?').run(raceId,old.horse_id)
+      database.prepare('DELETE FROM race_entries WHERE race_id=? AND horse_id=?').run(raceId,old.horse_id)
+    }
     for (const horse of race.horses) {
       const id = horseId(horse.name)
       horseStatement.run(id, horse.name)
-      entryStatement.run(raceId, id, horse.no, horse.age, horse.sire, horse.dam, horse.weight, horse.jockey, horse.trainer, horse.start, horse.lastSix, horse.daysSinceRace, horse.bestTimeSeconds, horse.independentScore, horse.probability, horse.marketShare)
+      entryStatement.run(...[raceId, id, horse.no, horse.age, horse.sire, horse.dam, parseWeight(horse.weight), horse.jockey, horse.trainer, horse.start, horse.lastSix, horse.daysSinceRace, horse.bestTimeSeconds, horse.independentScore, horse.probability, horse.marketShare].map(value=>value??null))
       if (horse.sourceData) entrySourceStatement.run(raceId, id, JSON.stringify(horse.sourceData))
     }
   }
@@ -341,6 +364,9 @@ export function getProgramForAnalysis(date, city) {
       sourceData = {}
     }
     const tjk = sourceData.tjk || {}
+    const environment = tjk.raceEnvironment
+    // Do not use historical weather observed after the target day.
+    if (environment?.observedAt?.slice(0, 10) <= date) racesById.get(entry.raceId).environment = environment
     let raceCode = null
     try {
       raceCode = tjk.workoutUrl ? new URL(tjk.workoutUrl).searchParams.get('KosuKodu') : null
@@ -349,13 +375,20 @@ export function getProgramForAnalysis(date, city) {
     }
     const workouts = raceCode ? workoutsByRaceCode.get(raceCode) || [] : []
     const workout = workouts.find((item) => item.number === entry.horseNo) || null
+    const workoutTables=findHorseProfileTables(tjk.horseId,'tjk_horse_workouts')
+    const horseWorkouts=workoutTables?summarizeWorkoutHistory(workoutTables,entry.horseName,date):tjk.workouts||[]
     racesById.get(entry.raceId).horses.push({
       no: entry.horseNo,
       name: entry.horseName,
       age: entry.age,
       sire: entry.sire,
       dam: entry.dam,
-      weight: entry.weight,
+      weight: parseWeight(entry.weight),
+      handicapRating: (() => {
+        const index = sourceData.headers?.findIndex((header) => header === 'H' || header === 'HP') ?? -1
+        const value = index >= 0 ? Number(sourceData.values?.[index]) : NaN
+        return Number.isFinite(value) ? value : null
+      })(),
       jockey: entry.jockey,
       trainer: entry.trainer,
       start: entry.start,
@@ -367,11 +400,25 @@ export function getProgramForAnalysis(date, city) {
       marketShare: entry.marketShare,
       baselineProbability: entry.probability,
       horsePerformance: tjk.horsePerformance || null,
+      horseId: tjk.horseId || null,
+      jockeyId: tjk.jockeyId || null,
+      workouts: horseWorkouts,
       jockeyPerformance: tjk.jockeyPerformance || null,
       workout,
     })
   }
   return [...racesById.values()]
+}
+
+export function findHorseProfileTables(horseId,source='tjk_horse_history') {
+  if (!horseId) return null
+  const snapshots = database.prepare(`SELECT provider_url AS url, raw_content AS content FROM source_snapshots WHERE source=? AND provider_url LIKE ? ORDER BY fetched_at DESC`).all(source,`%QueryParameter_AtId=${String(horseId)}%`)
+  for (const snapshot of snapshots) {
+    try {
+      if (new URL(snapshot.url).searchParams.get('QueryParameter_AtId') === String(horseId)) return JSON.parse(snapshot.content)
+    } catch { continue }
+  }
+  return null
 }
 
 export function findDailyAiAnalysis(date, city) {
@@ -381,6 +428,62 @@ export function findDailyAiAnalysis(date, city) {
   `).get(date, city)
   if (!row) return null
   return { ...row, analysis: JSON.parse(row.analysisJson) }
+}
+
+export function repairStoredWeights() {
+  const rows=database.prepare(`SELECT e.race_id,e.horse_id,e.weight,s.source_json FROM race_entries e LEFT JOIN race_entry_sources s ON s.race_id=e.race_id AND s.horse_id=e.horse_id WHERE e.weight>80 OR e.weight<35`).all()
+  let repaired=0,missing=0
+  const update=database.prepare('UPDATE race_entries SET weight=? WHERE race_id=? AND horse_id=?')
+  for(const row of rows){
+    let weight=null
+    try {const source=JSON.parse(row.source_json||'{}'); const index=source.headers?.findIndex(h=>String(h).trim().toLocaleLowerCase('tr-TR')==='kilo');weight=index>=0?parseWeight(source.values[index]):null} catch {}
+    update.run(weight,row.race_id,row.horse_id)
+    if(weight==null)missing++;else repaired++
+  }
+  return {repaired,markedMissing:missing}
+}
+
+export function scheduledRaceStart(date,time,{calendarDate=false}={}) {
+  const m=String(time||'').match(/^(\d{1,2})[.:](\d{2})$/)
+  if(!m||Number(m[1])>23||Number(m[2])>59)return null
+  let start=new Date(`${date}T${m[1].padStart(2,'0')}:${m[2]}:00+03:00`)
+  if(!calendarDate&&Number(m[1])<5)start=new Date(start.getTime()+86400000)
+  return start.toISOString()
+}
+
+export function saveForecastSnapshots({date,races,source,modelVersion,inputHash,predictions,capturedAt=new Date().toISOString()}) {
+  let saved=0
+  for(const race of races){
+    const start=scheduledRaceStart(race.scheduledDate||date,race.time,{calendarDate:Boolean(race.scheduledDate)})
+    if(!start||capturedAt>=start)continue
+    const prediction=predictions?.find(p=>p.city===race.city&&p.raceNo===race.no)
+    const picks=prediction?.picks||race.horses.map(h=>({horseName:h.name,horseNo:h.no,probability:h.probability}))
+    const id=createHash('sha256').update(`${date}:${race.city}:${race.no}:${source}:${inputHash}`).digest('hex')
+    const result=database.prepare(`INSERT OR IGNORE INTO forecast_snapshots VALUES(?,?,?,?,?,?,?,?,?,?)`).run(id,date,race.city,race.no,source,modelVersion,capturedAt,start,inputHash,JSON.stringify(picks))
+    saved+=Number(result.changes)
+  }
+  return saved
+}
+
+export function listForecastSnapshots(sinceDate) {
+  return database.prepare('SELECT * FROM forecast_snapshots WHERE date>=? AND captured_at<scheduled_start ORDER BY captured_at').all(sinceDate).map(row=>({...row,picks:JSON.parse(row.picks_json)}))
+}
+
+export function saveHistoricalRace(date,race,results) {
+  database.prepare(`INSERT INTO historical_race_data VALUES(?,?,?,?,?,?) ON CONFLICT(date,city,race_no) DO UPDATE SET race_json=excluded.race_json,results_json=excluded.results_json,fetched_at=excluded.fetched_at`).run(date,race.city,race.no,JSON.stringify(race),JSON.stringify([...results]),new Date().toISOString())
+}
+
+export function listHistoricalRaces() {
+  return database.prepare('SELECT * FROM historical_race_data ORDER BY date,city,race_no').all().map(row=>({date:row.date,...JSON.parse(row.race_json),results:new Map(JSON.parse(row.results_json))}))
+}
+export function historicalDataRevision(targetDate){
+  const row=database.prepare('SELECT count(*) n,max(fetched_at) updated FROM historical_race_data WHERE date<?').get(targetDate)
+  return `${row.n}:${row.updated||''}`
+}
+
+export function saveHorseWorkouts(date,city,raceNo,horseNo,horseId,workouts) {
+  const entries=database.prepare(`SELECT s.race_id,s.horse_id,s.source_json FROM race_entry_sources s JOIN race_entries e ON e.race_id=s.race_id AND e.horse_id=s.horse_id JOIN races r ON r.id=s.race_id WHERE r.date=? AND r.city=? AND r.race_no=? AND e.horse_no=?`).all(date,city,raceNo,horseNo)
+  for(const row of entries){const source=JSON.parse(row.source_json);if(String(source.tjk?.horseId)!==String(horseId))continue;source.tjk={...source.tjk,workouts};database.prepare('UPDATE race_entry_sources SET source_json=? WHERE race_id=? AND horse_id=?').run(JSON.stringify(source),row.race_id,row.horse_id)}
 }
 
 export function saveDailyAiAnalysis({ date, city, model, inputHash, analysis, createdAt }) {
@@ -394,6 +497,15 @@ export function saveDailyAiAnalysis({ date, city, model, inputHash, analysis, cr
       created_at=excluded.created_at
   `).run(date, city, model, inputHash, JSON.stringify(analysis), createdAt)
   return findDailyAiAnalysis(date, city)
+}
+
+export function findAnalysisBatch(inputHash){
+  const row=database.prepare('SELECT record_json FROM daily_ai_batches WHERE input_hash=?').get(inputHash)
+  return row?JSON.parse(row.record_json):null
+}
+export function saveAnalysisBatch(record){
+  database.prepare('INSERT OR REPLACE INTO daily_ai_batches VALUES(?,?,?)').run(record.inputHash,JSON.stringify(record),record.createdAt)
+  return record
 }
 
 export function findFreshSourceSnapshot(providerUrl, maxAgeMs) {

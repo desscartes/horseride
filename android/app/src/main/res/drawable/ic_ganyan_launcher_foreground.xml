@@ -1,16 +1,2 @@
 <?xml version="1.0" encoding="utf-8"?>
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="108dp"
-    android:height="108dp"
-    android:viewportWidth="108"
-    android:viewportHeight="108">
-    <path
-        android:fillColor="#C5E77F"
-        android:pathData="M24,88 L83,88 L80,82 L72,79 L67,73 L63,65 L70,59 L78,52 L83,44 L82,38 L76,34 L70,33 L75,28 L74,22 L68,24 L63,18 L57,21 L54,31 L47,29 L39,31 L33,36 L32,42 L39,48 L48,47 L52,53 L50,59 L43,66 L38,76 L31,81 Z" />
-    <path
-        android:fillColor="#263D2D"
-        android:pathData="M67,36h4v3h-4z" />
-    <path
-        android:fillColor="#8EAE5D"
-        android:pathData="M38,35 L48,32 L53,35 L47,39 L40,41 Z" />
-</vector>
+<bitmap xmlns:android="http://schemas.android.com/apk/res/android" android:src="@drawable/ganyan_foreground" android:gravity="fill" />

@@ -7,6 +7,8 @@
     "dev": "vite",
     "dev:lan": "vite --host 0.0.0.0",
     "api": "node --use-system-ca --env-file-if-exists=.env server/index.mjs",
+    "service": "node --use-system-ca server/service-supervisor.mjs",
+    "maintenance": "node --use-system-ca server/daily-maintenance.mjs",
     "dev:api": "node --use-system-ca --env-file-if-exists=.env server/index.mjs",
     "build": "vite build",
     "preview": "vite preview",

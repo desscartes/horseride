@@ -1,0 +1,2 @@
+import {listHistoricalRaces} from './server/database.mjs';import {raceEnvironment} from './server/environment-features.mjs';
+const races=listHistoricalRaces();const seen=new Set();for(const r of races){const e=r.horses.map(h=>h.sourceData?.tjk?.raceEnvironment).find(Boolean);if(e?.weather&&raceEnvironment(r,r.date).missingTemperature&&!seen.has(e.weather)){seen.add(e.weather);console.log(e.weather);if(seen.size===15)break}}
