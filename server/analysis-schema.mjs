@@ -29,6 +29,10 @@ export function schemaForRaces(races){
     item.properties.picks.minItems=Math.min(4,race.horses.length)
     item.properties.picks.maxItems=Math.min(4,race.horses.length)
     item.properties.picks.items.properties.horseName.enum=race.analysisCandidates||race.horses.map(h=>h.name)
+    if(Array.isArray(race.surpriseCandidates)) {
+      if(race.surpriseCandidates.length)item.properties.surprise.anyOf[1].properties.horseName.enum=race.surpriseCandidates
+      else item.properties.surprise={type:'null'}
+    }
     return item
   })}
   return schema

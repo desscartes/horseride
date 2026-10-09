@@ -104,6 +104,7 @@ export const budgetBetTypes = [
   { id: '6li-ganyan', label: '6’lı Ganyan', unitPrice: 1.25, mode: 'legs', legCount: 6 },
 ]
 
+import {validSurprise} from './surprisePolicy.js'
 export function getBudgetUnitPrice(market, city) {
   const domesticCities = ['İstanbul', 'Ankara', 'İzmir', 'Bursa', 'Adana', 'Kocaeli', 'Antalya', 'Diyarbakır', 'Elazığ', 'Şanlıurfa']
   const reducedSixLegPrice = ['Diyarbakır', 'Elazığ', 'Şanlıurfa'].includes(city) || !domesticCities.includes(city)
@@ -120,7 +121,7 @@ function getRunnerCandidates(race, prediction) {
       const raceHorse = raceHorses.get(pick.horseName.toLocaleLowerCase('tr-TR'))
       return { name: pick.horseName, number: raceHorse.no, rankWeight: 1 / (index + 1), modelWeight: Math.max(0, Number(raceHorse.probability ?? raceHorse.baselineProbability) || 0) / 100 }
     })
-  const surpriseName = prediction?.surprise?.horseName
+  const surpriseName = validSurprise(race,prediction)?.horseName
   const surpriseHorse = surpriseName ? raceHorses.get(surpriseName.toLocaleLowerCase('tr-TR')) : null
   if (surpriseHorse && !rankedHorses.some((horse) => horse.name === surpriseHorse.name)) rankedHorses.push({ name: surpriseHorse.name, number: surpriseHorse.no, rankWeight: 1 / 5, modelWeight:Math.max(0,Number(surpriseHorse.probability)||0)/100 })
   const totalRankWeight = rankedHorses.reduce((total, horse) => total + horse.rankWeight, 0)
@@ -355,7 +356,7 @@ export function buildBudgetTicket(races, predictions, selectedRace, marketId, bu
         horses: horses.map((horse) => ({
           name: horse.name,
           number: horse.number,
-          isSurprise: getPrediction(selectedRaces[legIndex])?.surprise?.horseName === horse.name,
+          isSurprise: validSurprise(selectedRaces[legIndex],getPrediction(selectedRaces[legIndex]))?.horseName === horse.name,
           authorCount: coupon.source === 'commentary'
             ? commentaryGroups[legIndex].horses.find((candidate) => candidate.number === horse.number)?.authorCount || 0
             : 0,

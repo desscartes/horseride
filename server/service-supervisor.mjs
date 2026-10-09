@@ -27,13 +27,16 @@ writeFileSync(lock, JSON.stringify(ownership), { flag: 'wx' })
 const port = Number(process.env.PORT || 8788)
 let api, worker, snapshotWorker, stopping = false
 let healthFailures=0,apiCheckPending=false,lastHealthyAt=null
+let activeAnalyses=0,lastReloadRequest=null
 let lastSnapshotStart = 0
 let snapshotStarting = false
 let lastMaintenanceStart = 0, lastMaintenanceDay = null
 const healthy = async () => {
   try {
     const response = await fetch(`http://127.0.0.1:${port}/api/health`, { signal: AbortSignal.timeout(3000) })
-    return response.ok && (await response.json()).service === 'horseride-data'
+    const payload=await response.json()
+    activeAnalyses=Number(payload.analysisRunning)||0
+    return response.ok && payload.service === 'horseride-data'
   } catch { return false }
 }
 function launch(script, args = []) {
@@ -59,6 +62,13 @@ async function ensureApi() {
     const ok=await healthy()
     healthFailures=ok?0:healthFailures+1
     if(ok)lastHealthyAt=new Date().toISOString()
+    const reloadPath=resolve(directory,'reload-api.json')
+    if(api&&ok&&activeAnalyses===0&&existsSync(reloadPath)){
+      const requested=JSON.parse(readFileSync(reloadPath,'utf8')).requestedAt
+      if(requested&&requested!==lastReloadRequest&&Date.parse(requested)>=Date.parse(ownership.startedAt)){
+        lastReloadRequest=requested;log('Applying requested API reload after analyses completed');api.kill();return
+      }
+    }
     const addresses=[...new Set(Object.values(networkInterfaces()).flat().filter(a=>a&&!a.internal&&a.family==='IPv4').map(a=>a.address))]
     const status={checkedAt:new Date().toISOString(),pid:process.pid,apiHealthy:ok,lastHealthyAt,consecutiveFailures:healthFailures,apiPid:api?.pid||null,phoneHealthUrls:addresses.map(a=>`http://${a}:${port}/api/health`)}
     writeFileSync(resolve(directory,'service-health.json'),JSON.stringify(status,null,2))

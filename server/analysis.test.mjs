@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 process.env.HORSERIDE_NO_LISTEN = '1'
 const { parseAnalysisOutput, summarizeHorsePerformance, buildHistoricalAnalysisContext } = await import('./index.mjs')
-const horses = ['A', 'B', 'C', 'D', 'E'].map((name) => ({ name }))
+const horses = ['A', 'B', 'C', 'D', 'E'].map((name,horsesIndex) => ({ name, marketShare: 40 - 8 * horsesIndex }))
 const races = [{ city: 'Adana', no: 1, horses }]
 const valid = () => ({ summary: 'Veriye dayalı analiz.', races: [{ city: 'Adana', raceNo: 1, confidence: 'low', risks: [], picks: horses.slice(0,4).map((horse) => ({ horseName: horse.name, reason: 'Mesafe uyumu var. Rakip geçmişi sınırlı. İdman verisi yok.' })) }] })
 test('requires four unique, current-program horses with detailed reasons', () => {
@@ -30,6 +30,14 @@ test('surprise must be a current runner outside the first two with evidence', ()
 test('decimal times do not count as full explanation sentences', () => {
   const v=valid();v.races[0].picks[0].reason='1.28.55 ve 1.29.22 derecelerle koştu.'
   assert.throws(()=>parseAnalysisOutput(JSON.stringify(v),races))
+})
+
+test('an AGF favorite outside the AI first two loses only its surprise label',()=>{
+ const v=valid();v.races[0].surprise={horseName:'E',reason:'Aynı mesafe ve pistte geçmiş uyumu var. Hafif kilo alternatif oluşturuyor, ancak formu belirsiz.'}
+ const changed=[{...races[0],horses:horses.map(h=>({...h,marketShare:h.name==='E'?80:5}))}]
+ const result=parseAnalysisOutput(JSON.stringify(v),changed).races[0]
+ assert.equal(result.surprise,null)
+ assert.deepEqual(result.picks.map(p=>p.horseName),['A','B','C','D'])
 })
 test('excludes target and future results and preserves surface, distance and class', () => {
   const headers=['Tarih','Şehir','Msf','Pist','S','Derece','Sıklet','Jokey','St','K. No-K. Adı','Kcins','HP']

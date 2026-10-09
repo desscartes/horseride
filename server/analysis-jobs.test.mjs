@@ -40,3 +40,15 @@ test('failed jobs can retry, cities stay isolated and old finished jobs expire',
   time = 101
   assert.equal(jobs.get(failed.id), undefined)
 })
+
+test('completed race explanations are published while the rest of the day is running',async()=>{
+ const jobs=createAnalysisJobs();let finish
+ const job=jobs.start('partial',async report=>{
+  report({phase:'analyzing',completed:3,total:9,analysis:{races:[{raceNo:1},{raceNo:2},{raceNo:3}]}})
+  return new Promise(r=>{finish=r})
+ })
+ await tick()
+ assert.equal(jobs.get(job.id).status,'running')
+ assert.equal(jobs.get(job.id).progress.analysis.races.length,3)
+ finish({analysis:{races:[]}});await tick()
+})

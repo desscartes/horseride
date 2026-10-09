@@ -1,7 +1,14 @@
+import {analysisCacheSignature} from '../src/data/dailyAnalysisCache.js'
+import {createAnalysisPrewarmer} from './analysis-prewarm.mjs'
 import './runtime-env.mjs'
 import { loadDailyShadowModel } from './ranking.mjs'
 import { createProgramCache } from './program-cache.mjs'
 import { createAnalysisJobs } from './analysis-jobs.mjs'
+import {readServedProgram,refreshServedProgram,compactProgramRaces} from './served-program.mjs'
+import {surpriseCandidates,validSurprise} from '../src/data/surprisePolicy.js'
+import {waitForEnrichment} from './enrichment-wait.mjs'
+import {analysisEntryFingerprint} from './analysis-entry-policy.mjs'
+import {reusableDailyAnalysis} from './daily-analysis-reuse.mjs'
 import { orderMeetings } from '../src/data/meetingOrder.js'
 import { createServer } from 'node:http'
 import { createHash, randomUUID } from 'node:crypto'
@@ -1384,7 +1391,8 @@ function parseAnalysisOutput(text, races) {
       const horse = horsesByName.get(normalizeName(prediction.surprise.horseName))
       const reason = String(prediction.surprise.reason || '').trim()
       if (!horse || picks.slice(0, 2).some((pick) => pick.horseName === horse.name) || reason.length < 60) throw new Error('Sürpriz aday mevcut programdan, ilk iki aday dışında ve gerekçeli olmalı.')
-      surprise = { horseName: horse.name, reason: reason.slice(0, 1000) }
+      const allowed = race.surpriseCandidates ?? surpriseCandidates(race,picks)
+      if(allowed.includes(horse.name))surprise = { horseName: horse.name, reason: reason.slice(0, 1000) }
     }
     return {
       city: race.city,
@@ -1404,7 +1412,11 @@ function parseAnalysisOutput(text, races) {
 }
 
 function buildHistoricalAnalysisContext(races, targetDate, {archive=null}={}) {
-  const contextHorseKey=value=>horseIdentityV2(value).toLowerCase()
+  const horseKeys=new Map()
+  const contextHorseKey=value=>{
+    if(!horseKeys.has(value))horseKeys.set(value,horseIdentityV2(value).toLowerCase())
+    return horseKeys.get(value)
+  }
   const contextJockeyKey=value=>jockeyIdentityV2(value).toLowerCase()
   let hkHealth=null,hkWork=null
   if(races.some(r=>racingCountry(r.city)==='HK')){
@@ -1417,11 +1429,20 @@ function buildHistoricalAnalysisContext(races, targetDate, {archive=null}={}) {
   const fieldRows = [...new Map(listBacktestEntries(sinceDate, targetDate).map(row=>[`${row.date}:${normalizeMeetingName(row.city)}:${row.raceNo}:${performanceKey(row.horseName)}`,row])).values()]
   const requestedCountries=new Set(races.map(r=>racingCountry(r.city)||'TR'))
   const externalWorkouts=requestedCountries.has('US')?foreignWorkoutRecords():[]
-  const analysisHistory=(archive||listHistoricalRaces()).filter(r=>requestedCountries.has(racingCountry(r.city)||'TR')&&r.date>=sinceDate&&r.date<targetDate)
+  const historicalArchive=archive??listHistoricalRaces()
+  const analysisHistory=historicalArchive.filter(r=>requestedCountries.has(racingCountry(r.city)||'TR')&&r.date>=sinceDate&&r.date<targetDate)
+  const runsByHorse=new Map()
+  for(const old of analysisHistory)for(const runner of old.horses){
+    const result=old.results.get(runner.no)
+    if(!result?.finishPosition)continue
+    const key=`${racingCountry(old.city)||'TR'}:${contextHorseKey(runner.name)}`
+    if(!runsByHorse.has(key))runsByHorse.set(key,[])
+    runsByHorse.get(key).push({date:old.date,city:old.city,raceNo:old.no,distance:parseNumber(old.distance),surface:old.surface,finishPosition:result.finishPosition,timeSeconds:result.timeSeconds,weight:runner.weight,start:runner.start,jockey:runner.jockey,className:old.type,handicapRating:runner.handicapRating,source:racingCountry(old.city)?'TJK foreign archive':'TJK domestic archive',externalEvidence:runner.externalEvidence||null})
+  }
   let verifiedPaces=new Map()
   if(requestedCountries.has('US'))try{verifiedPaces=paceHistory(JSON.parse(readFileSync('data/external/equibase/parsed.json','utf8')).races)}catch{}
   const stewardByHorse=new Map()
-  for(const old of listHistoricalRaces().filter(r=>!r.foreign&&r.date<targetDate&&r.date>=sinceDate))for(const horse of old.horses)if(horse.stewardEvidence?.length){
+  for(const old of historicalArchive.filter(r=>!r.foreign&&r.date<targetDate&&r.date>=sinceDate))for(const horse of old.horses)if(horse.stewardEvidence?.length){
     const key=`${old.date}:${normalizeMeetingName(old.city)}:${contextHorseKey(horse.name)}`
     stewardByHorse.set(key,horse.stewardEvidence)
   }
@@ -1464,10 +1485,7 @@ function buildHistoricalAnalysisContext(races, targetDate, {archive=null}={}) {
       horses: race.horses.map((horse,horseIndex) => {
         const profileTables = findHorseProfileTables(horse.horseId)
         const horsePerformance = profileTables ? summarizeHorsePerformance(profileTables, targetDate, horse.name) : horse.horsePerformance
-        const archiveRuns=analysisHistory.filter(old=>racingCountry(old.city)===racingCountry(race.city)).flatMap(old=>{
-          const runner=old.horses.find(h=>contextHorseKey(h.name)===contextHorseKey(horse.name)),result=runner&&old.results.get(runner.no)
-          return result?.finishPosition?[{date:old.date,city:old.city,raceNo:old.no,distance:parseNumber(old.distance),surface:old.surface,finishPosition:result.finishPosition,timeSeconds:result.timeSeconds,weight:runner.weight,start:runner.start,jockey:runner.jockey,className:old.type,handicapRating:runner.handicapRating,source:racingCountry(old.city)?'TJK foreign archive':'TJK domestic archive',externalEvidence:runner.externalEvidence||null}]:[]
-        }).sort((a,b)=>b.date.localeCompare(a.date))
+        const archiveRuns=[...(runsByHorse.get(`${racingCountry(race.city)||'TR'}:${contextHorseKey(horse.name)}`)||[])].sort((a,b)=>b.date.localeCompare(a.date))
         const mergedRuns=racingCountry(race.city)?archiveRuns:[...new Map([...archiveRuns,...(horsePerformance?.pastRuns||[])].map(run=>[`${run.date}:${normalizeMeetingName(run.city)}:${run.raceNo}`,run])).values()].sort((a,b)=>b.date.localeCompare(a.date))
         const recentRuns = mergedRuns
           .filter((run) => run.date < targetDate && run.date >= sinceDate)
@@ -1535,7 +1553,8 @@ Her koşuda en fazla 5 atı model sırasına göre yaz. Her atın reason alanın
     'Tarih/şehir/koşu eşleşmesi bulunmayan geçmiş rakip alanını kullanma; bu durumda rakip kalite kıyasının mevcut olmadığını söyle. evidenceCoverage alanını kanıt yeterliliğini değerlendirirken kullan. sameDistanceAndSurface birleşik uyumunu önceliklendir; farklı pist/mesafelerin ham derecelerini doğrudan kıyaslama. environment varsa resmi hava, nem ve pist durumunun uygunluğunu değerlendir; yoksa hava etkisi hakkında bilgi uydurma. Eski model sıralamasını mutlak kalite ölçüsü sayma; sınıf adları da yalnızca yaklaşık seviye göstergesidir. Rakip, mesafe, pist, idman, derece veya jokey hakkında verilen veri dışına çıkma; eksik alanları açıkla. At adlarını yalnızca mevcut koşudaki program adlarıyla kullan. Göreli skoru kazanma olasılığı gibi sunma; yüzdeyle kazanma ihtimali, garanti veya kesin sonuç üretme. Veri zayıfsa güven düzeyini düşür.\n' +
     'performanceEvidence varsa geçmiş hız referansının örnek sayısını ve sınıf/rakip farkını açıkla; speedEvidenceCount sıfırsa hız kanıtı varmış gibi yazma. Komiser metninde ceza alan binicinin atını otomatik olarak mağdur veya şanssız sayma. publicHealthEvidence eski resmi olay kayıtlarıdır, güncel hastalık tanısı değildir. weatherForecast bölgesel tahmindir; resmi pist durumu veya gerçekleşmiş hava yerine kullanma. Yeni hava tahmini ve HK kayıtları henüz sayısal modelde öğrenilmiş değildir.\n' +
     'paceEvidence varsa verifiedPaceStarts örnek sayısı ile ilk ara konumdan finişe yükselme/gerileme ve rakiplerin önde gitme geçmişini birlikte tartış. Start sütunu ara konum değildir; eksik ara konumu tahmin etme. Tempo geçmişi tek başına bugünkü yarışın nasıl akacağını kanıtlamaz.\n' +
-    'JSON biçimi: {"summary":"...","races":[{"city":"...","raceNo":1,"picks":[{"horseName":"...","reason":"Üç ila beş tam cümle."}],"confidence":"low|medium|high","risks":["..."]}]}\n' +
+    'Sürpriz yalnızca surpriseCandidates listesinden seçilebilir. Bu liste AGF ilk iki favorisini ve ikinci sıradaki eşitlikleri dışlar; boşsa surprise=null zorunludur. AGF ana aday sırasını değiştirmek için kullanılmaz. Her aday için üç kısa, somut cümle yaz; tekrarlı uzun açıklamaları çıkar.\n' +
+    'JSON biçimi: {"summary":"...","races":[{"city":"...","raceNo":1,"picks":[{"horseName":"...","reason":"Üç kısa tam cümle."}],"confidence":"low|medium|high","risks":["..."],"surprise":null}]}\n' +
     programJSON
   if (Buffer.byteLength(input, 'utf8') > 750_000) {
     throw Object.assign(new Error('Günlük analiz girdisi çok büyük; maliyeti sınırlamak için tek şehir seçin.'), { status: 413 })
@@ -1547,17 +1566,17 @@ Her koşuda en fazla 5 atı model sırasına göre yaz. Her atın reason alanın
   const response = await withRetries(() => fetch('https://api.openai.com/v1/responses', {
     method: 'POST',
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    signal: AbortSignal.timeout(120_000),
+    signal: AbortSignal.timeout(90_000),
     body: JSON.stringify({
       model,
       store: false,
-      max_output_tokens: Math.min(30_000, Math.max(16_000, races.length * 1_800)),
+      max_output_tokens: Math.min(12_000, Math.max(3_000, races.length * 2_000)),
       reasoning: { effort: 'low' },
       instructions: 'Seçili ülkenin yarışlarını yalnızca verilen program, geçmiş performans, jokey ve idman alanlarına dayanarak analiz et. Kaynakta olmayan bilgi, oran veya sonuç uydurma; eksik alanı belirsizlik say. At isimlerini listedeki adlarıyla aynen kullan. Her koşu için en fazla 5 aday, kısa veri dayanaklı gerekçe, low/medium/high belirsizlik seviyesi ve en çok 4 risk yaz. Kupon oluşturma; kupon kombinasyonları bütçe ve her ayaktaki aday ağırlıklarına göre uygulama içinde hesaplanıyor. Kazanma olasılığı yüzdesi veya kesin kupon garantisi verme. Yalnız JSON döndür: {"summary":"...","races":[{"city":"...","raceNo":1,"picks":[{"horseName":"...","reason":"..."}],"confidence":"low|medium|high","risks":["..."]}]} .',
       input,
       text: { format: { type: 'json_schema', name: 'race_analysis', strict: true, schema: schemaForRaces(races) } },
     }),
-  }), 2).catch((error) => {
+  }), 1).catch((error) => {
     throw Object.assign(new Error(`AI servisine bağlantı kurulamadı (${error.cause?.code || error.name}). Günlük analiz kaydedilmedi; bağlantı düzeldiğinde tekrar deneyin.`), { status: 503 })
   })
   const responsePayload = await response.json().catch(() => ({}))
@@ -1591,12 +1610,14 @@ Her koşuda en fazla 5 atı model sırasına göre yaz. Her atın reason alanın
 
 async function createDailyAnalysis(date, city, onProgress = () => {}, priorityRaceNo = null) {
   const programFingerprint=analysisFingerprint(getProgramForAnalysis(date,city))
+  const entryFingerprint=analysisEntryFingerprint(getProgramForAnalysis(date,city))
   const modelSignature=rankingSignature(date)
   const ranked=await attachRaceForecasts(locallyRankRaces(getProgramForAnalysis(date, city),date),date)
   const races = buildHistoricalAnalysisContext(ranked, date).map((race) => ({
     ...race,
     analysisCandidates:race.rankingSource==='local_trained_model'?race.horses.slice(0,4).map(h=>h.name):undefined,
-    horses: race.horses.map(({ marketShare, horseId, probability, baselineProbability, independentScore, ...horse }) => horse),
+    surpriseCandidates:surpriseCandidates(race,race.rankingSource==='local_trained_model'?race.horses.slice(0,2).map(h=>h.name):[]),
+    horses: race.horses.map(({ marketShare, horseId, sourceData, probability, baselineProbability, independentScore, ...horse }) => horse),
   }))
   if (!races.length) throw Object.assign(new Error('Önce yarış programı alınmalı.'), { status: 409 })
   const batches = []
@@ -1608,26 +1629,60 @@ async function createDailyAnalysis(date, city, onProgress = () => {}, priorityRa
   // Preserve batch membership so existing paid responses remain reusable.
   batches.sort((a,b) => Number(b.some(r => r.no === priorityRaceNo)) - Number(a.some(r => r.no === priorityRaceNo)))
   let completed = 0
+  const completedResults = []
   onProgress({ phase: 'analyzing', completed, total: races.length })
   const results = await mapWithConcurrency(batches, 3, async batch => {
     const result = await analyzeDailyBatch(date, city, batch)
+    completedResults.push(result)
     completed += batch.length
-    onProgress({ phase: 'analyzing', completed, total: races.length })
+    const currentProgram=getProgramForAnalysis(date,city)
+    if(analysisEntryFingerprint(currentProgram)!==entryFingerprint||rankingSignature(date)!==modelSignature)throw Error('Program analiz sırasında değişti; güncel programla tekrar deneyin.')
+    const partialRaces=completedResults.flatMap(r=>r.analysis.races).map(p=>({...p,surprise:validSurprise(currentProgram.find(r=>r.city===p.city&&Number(r.no)===Number(p.raceNo)),p)}))
+    onProgress({ phase: 'analyzing', completed, total: races.length, analysis:{summary:'Tamamlanan koşular gösteriliyor; diğer koşuların analizi sürüyor.',races:partialRaces} })
     return result
   })
-  const analysis = { version: dailyAnalysisVersion, programFingerprint, rankingSignature:modelSignature,summary: [...new Set(results.map((result) => result.analysis.summary))].join(' ').slice(0,1800), races: results.flatMap((result) => result.analysis.races) }
+  const analysis = { version: dailyAnalysisVersion, programFingerprint, entryFingerprint, rankingSignature:modelSignature,summary: [...new Set(results.map((result) => result.analysis.summary))].join(' ').slice(0,1800), races: results.flatMap((result) => result.analysis.races) }
   if (analysis.races.length !== races.length) throw new Error('Günlük analiz tamamlanmadı; kayıt yapılmadı.')
   const inputHash=createHash('sha256').update(results.map((result) => result.inputHash).join(':')).digest('hex')
   const createdAt=new Date().toISOString()
   // Discard a response if the field changed while the model was working.
-  if(analysisFingerprint(getProgramForAnalysis(date,city))!==analysis.programFingerprint||rankingSignature(date)!==modelSignature)throw new Error('Program analiz sırasında değişti; güncel programla tekrar deneyin.')
+  if(analysisEntryFingerprint(getProgramForAnalysis(date,city))!==entryFingerprint||rankingSignature(date)!==modelSignature)throw new Error('Program analiz sırasında değişti; güncel programla tekrar deneyin.')
   for(const race of races)saveForecastSnapshots({date,races:[race],source:'daily_ai',modelVersion:`daily-${dailyAnalysisVersion}:${race.rankingMethod||'baseline'}`,inputHash,predictions:analysis.races,capturedAt:createdAt})
   return saveDailyAiAnalysis({ date, city, model: results[0].model, inputHash, analysis, createdAt })
 }
 
 function getValidDailyAnalysis(date, city) {
   const cached = findDailyAiAnalysis(date, city)
-  return cached?.analysis?.version === dailyAnalysisVersion && Array.isArray(cached.analysis.races) && cached.analysis.rankingSignature===rankingSignature(date) && cached.analysis.programFingerprint===analysisFingerprint(getProgramForAnalysis(date,city)) ? cached : null
+  return cached&&reusableDailyAnalysis(cached,{version:dailyAnalysisVersion,rankingSignature:rankingSignature(date),program:getProgramForAnalysis(date,city),rankedProgram:readServedProgram(date)?.races||[]}) ? cached : null
+}
+
+function dailyAnalysisPayload(date,city,record,cached=true){
+ const program=getProgramForAnalysis(date,city)
+ return {date,city,model:record.model,createdAt:record.createdAt,cached,analysis:{...record.analysis,races:record.analysis.races.map(p=>({...p,surprise:validSurprise(program.find(r=>r.city===p.city&&Number(r.no)===Number(p.raceNo)),p)}))}}
+}
+const preparedAnalysisPayloads=new Map()
+function rememberPreparedAnalysis(date,city,record){
+ const races=readServedProgram(date)?.races||[]
+ const payload=dailyAnalysisPayload(date,city,record)
+ preparedAnalysisPayloads.set(`${date}:${city}`,{signature:analysisCacheSignature(races,city),payload})
+ for(const key of preparedAnalysisPayloads.keys())if(!key.startsWith(date+':'))preparedAnalysisPayloads.delete(key)
+ return payload
+}
+const analysisPrewarmer=createAnalysisPrewarmer({
+ ready:(date,city)=>{const record=getValidDailyAnalysis(date,city);if(record)rememberPreparedAnalysis(date,city,record);return record},
+ run:async(date,city)=>{
+  const job=analysisJobs.start(`${date}:${city}`,async report=>{
+   const result=await getOrCreateDailyAnalysis(date,city,report)
+   return rememberPreparedAnalysis(date,city,result.record)
+  })
+  while(analysisJobs.get(job.id)?.status==='running')await new Promise(resolve=>setTimeout(resolve,500))
+  const result=analysisJobs.get(job.id)
+  if(result?.status==='error')throw Error(result.error)
+ }
+})
+function prepareServerAnalyses(day,snapshot){
+ if(process.env.OPENAI_API_KEY&&process.env.HORSERIDE_AI_PREWARM!=='0'&&snapshot?.races?.length)
+  void analysisPrewarmer.tick(day,snapshot.races).catch(error=>console.error('Analysis warmup:',error.message))
 }
 
 async function getOrCreateDailyAnalysis(date, city, onProgress = () => {}, priorityRaceNo = null) {
@@ -1641,7 +1696,8 @@ async function getOrCreateDailyAnalysis(date, city, onProgress = () => {}, prior
       const total = getProgramForAnalysis(date, city).length
       if (!total) throw Object.assign(new Error('Önce yarış programı alınmalı.'), { status: 409 })
       onProgress({ phase: 'preparing', completed: 0, total })
-      await ensureWorkouts(date, city)
+      const enrichment=await waitForEnrichment(ensureWorkouts(date,city))
+      if(!enrichment.ready)console.warn('Analysis uses available workout archive; refresh pending or unavailable:',city)
       const ready = getValidDailyAnalysis(date, city)
       return ready || createDailyAnalysis(date, city, onProgress, priorityRaceNo)
     })()
@@ -2106,7 +2162,29 @@ async function settleForecasts(){
   try{await settlementPending}finally{settlementPending=null}
 }
 
-const server = createServer(async (request, response) => {
+
+async function buildFreshProgramPayload(date,city) {
+    const result = await fetchPrograms(date, city)
+    const walkForwardModel = result.races.some(r=>!racingCountry(r.city))?getWalkForwardModelForDate(formatDate(date).iso):null
+    const baselineRaces = walkForwardModel
+      ? result.races.map((race) => racingCountry(race.city)?race:scoreRace(race, { weights: walkForwardModel.weights, history: walkForwardModel.history }))
+      : result.races
+    const scoredRaces=locallyRankRaces(baselineRaces,formatDate(date).iso)
+    const fetchedAt = new Date().toISOString()
+    const modelTrainedThroughDate = walkForwardModel ? new Date(date) : null
+    if (modelTrainedThroughDate) modelTrainedThroughDate.setDate(modelTrainedThroughDate.getDate() - 1)
+    const stored = saveProgram({ city: result.city, date: formatDate(date).iso, fetchedAt, providerUrl: result.providerUrls[0], races: scoredRaces, rawSources: result.rawSources || [] })
+    if(!isAllCitySelection(city)&&(racingCountry(city)==='US'||scoredRaces.some(r=>r.horses.some(h=>h.horseId))))void ensureWorkouts(formatDate(date).iso,city).catch(error=>console.error('Workout enrichment:',error.message))
+    for(const race of scoredRaces)saveForecastSnapshots({date:formatDate(date).iso,races:[race],source:'numeric',modelVersion:race.rankingMethod||walkForwardModel?.modelVersion||baselineModelVersion,inputHash:analysisFingerprint([race]),capturedAt:fetchedAt})
+    const storedProgram = isAllCitySelection(city) ? loadStoredProgram(formatDate(date).iso, city) : []
+    const firstLearned=scoredRaces.find(r=>r.rankingSource==='local_trained_model')
+    const learned=firstLearned?(loadForeignRankingModel(racingCountry(firstLearned.city))||loadRankingModel())?.metadata:null
+    const displayedRaces=storedProgram.length?locallyRankRaces(storedProgram,formatDate(date).iso):scoredRaces
+    const forecastRaces=isAllCitySelection(city)?displayedRaces:await attachRaceForecasts(displayedRaces,formatDate(date).iso)
+    return { source: result.source, city: result.city, date: formatDate(date).iso, fetchedAt, providerUrls: result.providerUrls, failures: result.failures, meetings: result.meetings || meetingOptionsByDate.get(formatDate(date).iso) || [], races: forecastRaces, agfUsed: false, jockeyHistoryUsed: Boolean(walkForwardModel||learned), stored, model: learned?.method || walkForwardModel?.modelVersion || baselineModelVersion, modelTrainingStartDate: learned?.train.from || walkForwardModel?.trainingStartDate || null, modelTrainedThrough: learned?.trainedThrough || (modelTrainedThroughDate ? formatDate(modelTrainedThroughDate).iso : null), modelTrainingRaces: learned?.liveTrainingRaces || walkForwardModel?.trainingRaces || 0 }
+}
+
+export const server = createServer(async (request, response) => {
   const requestUrl = new URL(request.url, `http://${request.headers.host}`)
   if (request.method === 'OPTIONS') {
     response.writeHead(204, {
@@ -2117,7 +2195,7 @@ const server = createServer(async (request, response) => {
     })
     return response.end()
   }
-  if (requestUrl.pathname === '/api/health') return sendJson(response, 200, { ok: true, service: 'horseride-data', aiConfigured: Boolean(process.env.OPENAI_API_KEY) })
+  if (requestUrl.pathname === '/api/health') return sendJson(response, 200, { ok: true, service: 'horseride-data', aiConfigured: Boolean(process.env.OPENAI_API_KEY),analysisRunning:analysisJobs.runningCount() })
   if (requestUrl.pathname === '/api/maintenance' && request.method === 'GET') {
     try { return sendJson(response, 200, JSON.parse(readFileSync('data/maintenance/state.json','utf8'))) }
     catch { return sendJson(response, 200, { phase: 'not_started' }) }
@@ -2174,7 +2252,10 @@ const server = createServer(async (request, response) => {
         return sendJson(response, 400, { error: 'Geçersiz tarih.' })
       }
       if (!city || city.length > 80) return sendJson(response, 400, { error: 'Geçerli şehir gerekli.' })
-      const toPayload = result => ({ date, city, model: result.record.model, createdAt: result.record.createdAt, cached: result.cached, analysis: result.record.analysis })
+      const toPayload = result => {
+        const program=getProgramForAnalysis(date,city)
+        return {date,city,model:result.record.model,createdAt:result.record.createdAt,cached:result.cached,analysis:{...result.record.analysis,races:result.record.analysis.races.map(p=>({...p,surprise:validSurprise(program.find(r=>r.city===p.city&&Number(r.no)===Number(p.raceNo)),p)}))}}
+      }
       const cached = getValidDailyAnalysis(date, city)
       if (cached) return sendJson(response, 200, toPayload({ record: cached, cached: true }))
       if (request.method === 'GET') return sendJson(response, 200, { date, city, available: false })
@@ -2183,7 +2264,7 @@ const server = createServer(async (request, response) => {
         return sendJson(response, 202, { job })
       }
       const result = await getOrCreateDailyAnalysis(date, city)
-      return sendJson(response, 200, { date, city, model: result.record.model, createdAt: result.record.createdAt, cached: result.cached, analysis: result.record.analysis })
+      return sendJson(response, 200, toPayload(result))
     } catch (error) {
       return sendJson(response, error.status || 502, { error: error.message })
     }
@@ -2217,6 +2298,8 @@ const server = createServer(async (request, response) => {
     const dateParam = requestUrl.searchParams.get('date')
     const date = dateParam ? new Date(`${dateParam}T12:00:00`) : new Date()
     if (Number.isNaN(date.getTime())) return sendJson(response, 400, { error: 'Geçersiz tarih.' })
+    const saved=readServedProgram(formatDate(date).iso)
+    if(saved?.meetings?.length)return sendJson(response,200,{date:saved.date,meetings:saved.meetings})
     try {
       await fetchForeignProgramCities(date)
       return sendJson(response, 200, { date: formatDate(date).iso, meetings: meetingOptionsByDate.get(formatDate(date).iso) || [] })
@@ -2239,24 +2322,17 @@ const server = createServer(async (request, response) => {
     const city = requestUrl.searchParams.get('city') || defaultCity
     const date = dateParam ? new Date(`${dateParam}T12:00:00`) : new Date()
     if (Number.isNaN(date.getTime())) return sendJson(response, 400, { error: 'Geçersiz tarih.' })
-    const result = await fetchPrograms(date, city)
-    const walkForwardModel = result.races.some(r=>!racingCountry(r.city))?getWalkForwardModelForDate(formatDate(date).iso):null
-    const baselineRaces = walkForwardModel
-      ? result.races.map((race) => racingCountry(race.city)?race:scoreRace(race, { weights: walkForwardModel.weights, history: walkForwardModel.history }))
-      : result.races
-    const scoredRaces=locallyRankRaces(baselineRaces,formatDate(date).iso)
-    const fetchedAt = new Date().toISOString()
-    const modelTrainedThroughDate = walkForwardModel ? new Date(date) : null
-    if (modelTrainedThroughDate) modelTrainedThroughDate.setDate(modelTrainedThroughDate.getDate() - 1)
-    const stored = saveProgram({ city: result.city, date: formatDate(date).iso, fetchedAt, providerUrl: result.providerUrls[0], races: scoredRaces, rawSources: result.rawSources || [] })
-    if(!isAllCitySelection(city)&&(racingCountry(city)==='US'||scoredRaces.some(r=>r.horses.some(h=>h.horseId))))void ensureWorkouts(formatDate(date).iso,city).catch(error=>console.error('Workout enrichment:',error.message))
-    for(const race of scoredRaces)saveForecastSnapshots({date:formatDate(date).iso,races:[race],source:'numeric',modelVersion:race.rankingMethod||walkForwardModel?.modelVersion||baselineModelVersion,inputHash:analysisFingerprint([race]),capturedAt:fetchedAt})
-    const storedProgram = isAllCitySelection(city) ? loadStoredProgram(formatDate(date).iso, city) : []
-    const firstLearned=scoredRaces.find(r=>r.rankingSource==='local_trained_model')
-    const learned=firstLearned?(loadForeignRankingModel(racingCountry(firstLearned.city))||loadRankingModel())?.metadata:null
-    const displayedRaces=storedProgram.length?locallyRankRaces(storedProgram,formatDate(date).iso):scoredRaces
-    const forecastRaces=isAllCitySelection(city)?displayedRaces:await attachRaceForecasts(displayedRaces,formatDate(date).iso)
-    return sendJson(response, 200, { source: result.source, city: result.city, date: formatDate(date).iso, fetchedAt, providerUrls: result.providerUrls, failures: result.failures, meetings: result.meetings || meetingOptionsByDate.get(formatDate(date).iso) || [], races: forecastRaces, agfUsed: false, jockeyHistoryUsed: Boolean(walkForwardModel||learned), stored, model: learned?.method || walkForwardModel?.modelVersion || baselineModelVersion, modelTrainingStartDate: learned?.train.from || walkForwardModel?.trainingStartDate || null, modelTrainedThrough: learned?.trainedThrough || (modelTrainedThroughDate ? formatDate(modelTrainedThroughDate).iso : null), modelTrainingRaces: learned?.liveTrainingRaces || walkForwardModel?.trainingRaces || 0 })
+    const dateISO=formatDate(date).iso
+    const snapshot=readServedProgram(dateISO)
+    if(!snapshot||Date.now()-Date.parse(snapshot.fetchedAt)>300000)void refreshServedProgram(dateISO).catch(e=>console.error('Background program refresh:',e.message))
+    if(!snapshot)return sendJson(response,202,{date:dateISO,city,races:[],meetings:[],refreshing:true,source:'preparing',message:'Program hazırlanıyor; otomatik tekrar denenecek.'})
+    const filtered=isAllCitySelection(city)?snapshot.races:isAllForeignSelection(city)?snapshot.races.filter(r=>racingCountry(r.city)):snapshot.races.filter(r=>matchesVenueSelection(city,r.city,r.venue))
+    const dailyAnalyses=[...new Set(filtered.map(r=>r.city))].flatMap(meeting=>{
+      const prepared=preparedAnalysisPayloads.get(`${dateISO}:${meeting}`)
+      if(!prepared||prepared.signature!==analysisCacheSignature(filtered,meeting))return []
+      return [{...prepared.payload,analysis:{...prepared.payload.analysis,races:prepared.payload.analysis.races.map(p=>({...p,surprise:validSurprise(filtered.find(r=>r.city===p.city&&Number(r.no)===Number(p.raceNo)),p)}))}}]
+    })
+    return sendJson(response,200,{...snapshot,city,races:compactProgramRaces(filtered),dailyAnalyses,refreshing:Date.now()-Date.parse(snapshot.fetchedAt)>300000,source:'program_snapshot'})
   } catch (error) {
     const dateParam = requestUrl.searchParams.get('date')
     const date = dateParam ? new Date(`${dateParam}T12:00:00`) : new Date()
@@ -2282,6 +2358,14 @@ if (process.env.HORSERIDE_NO_LISTEN !== '1') {
   const bindHost=process.env.HOST||'0.0.0.0'
   server.listen(port,bindHost, () => console.log(`HorseRide data API listening on http://${bindHost}:${port}`))
   setTimeout(()=>settleForecasts().catch(error=>console.error('Forecast settlement:',error.message)),5000).unref()
+  const warmProgram=()=>{
+   const day=formatDate(new Date()).iso,snapshot=readServedProgram(day)
+   prepareServerAnalyses(day,snapshot)
+   if(!snapshot||Date.now()-Date.parse(snapshot.fetchedAt)>300000)
+    void refreshServedProgram(day).then(fresh=>prepareServerAnalyses(day,fresh)).catch(e=>console.error('Program warmup:',e.message))
+   else prepareServerAnalyses(day,snapshot)
+  }
+  setTimeout(warmProgram,1000).unref();setInterval(warmProgram,60000).unref()
   setInterval(()=>settleForecasts().catch(error=>console.error('Forecast settlement:',error.message)),3600000).unref()
 }
-export { buildHistoricalAnalysisContext, parseAnalysisOutput, createDailyAnalysis, performanceSummary, summarizeHorsePerformance, collectHistoricalDay, scoreRace, parseCsv, parseOfficialRaceResults, collectHorseWorkouts }
+export { buildFreshProgramPayload, buildHistoricalAnalysisContext, parseAnalysisOutput, createDailyAnalysis, performanceSummary, summarizeHorsePerformance, collectHistoricalDay, scoreRace, parseCsv, parseOfficialRaceResults, collectHorseWorkouts }

@@ -24,5 +24,6 @@ export function createAnalysisJobs({ now = Date.now, retentionMs = 30 * 60_000 }
       return publicJob(job)
     },
     get(id) { prune(); return publicJob(jobs.get(id)) },
+    runningCount() { return running.size },
   }
 }

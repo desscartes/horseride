@@ -1,10 +1,15 @@
 import { Capacitor } from '@capacitor/core'
 import {normalizeServerAddress,serverAddressKey} from './serverAddress'
+import {createDailyAnalysisCache,analysisCacheSignature} from './dailyAnalysisCache.js'
+let analysisStorage
+try{analysisStorage=globalThis.localStorage}catch{}
+const dailyCache=createDailyAnalysisCache({storage:analysisStorage})
+export function getCachedDailyAnalysis(city,date,program){return dailyCache.get(currentApiUrl(),city,date,analysisCacheSignature(program,city))}
 
 const apiUrl = import.meta.env.VITE_RACE_API_URL || '/api/races'
 const nativeApiUrl = 'http://10.0.2.2:8788/api/races'
 const resolvedApiUrl = import.meta.env.VITE_RACE_API_URL || (Capacitor.isNativePlatform() ? nativeApiUrl : apiUrl)
-function currentApiUrl(){try{return localStorage.getItem(serverAddressKey)||resolvedApiUrl}catch{return resolvedApiUrl}}
+function currentApiUrl(){if(Capacitor.isNativePlatform())return resolvedApiUrl;try{return localStorage.getItem(serverAddressKey)||resolvedApiUrl}catch{return resolvedApiUrl}}
 export function getServerAddress(){return new URL(currentApiUrl(),window.location.origin).origin}
 export async function connectServerAddress(address){
   const normalized=normalizeServerAddress(address),url=new URL(normalized);url.pathname='/api/health'
@@ -20,7 +25,7 @@ const programCacheKey = (city, date) => `ganyan-program-v2:${currentApiUrl()}:${
 export function getCachedRaceProgram(city, date) {
   try {
     const cached = JSON.parse(localStorage.getItem(programCacheKey(city, date)))
-    if (!cached || Date.now() - cached.savedAt > 30 * 60_000 || !cached.result?.races?.length) return null
+    if (!cached || Date.now() - cached.savedAt > 24 * 60 * 60_000 || !cached.result?.races?.length) return null
     return { ...cached.result, source: 'cached', message: 'Kaydedilmiş program gösteriliyor; güncel veriler kontrol ediliyor.' }
   } catch { return null }
 }
@@ -68,25 +73,29 @@ async function fetchRaceProgram(city, date) {
     url.searchParams.set('city', city)
     if (date) url.searchParams.set('date', date)
     const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 60_000)
+    const timeout = setTimeout(() => controller.abort(), 12_000)
     let payload
     try {
       const response = await fetch(url, { signal: controller.signal })
       if (!response.ok) throw new Error(`Yarış servisi ${response.status} döndürdü.`)
       payload = await response.json()
     } finally { clearTimeout(timeout) }
+    if(payload.source==='preparing'){const cached=getCachedRaceProgram(city,date);return cached||{races:[],city,source:'loading',providerSource:'preparing',providerUrls:[],failures:[],meetings:[],message:'Program hazırlanıyor; bağlantı otomatik yenileniyor.'}}
     if (!Array.isArray(payload.races)) throw new Error('Yarış servisi beklenen formatta veri döndürmedi.')
 
     const warning = Array.isArray(payload.failures) && payload.failures.length
       ? ` Bazı merkezler şu an yanıt vermiyor: ${payload.failures.slice(0, 3).map((item) => item.city).join(', ')}.`
       : ''
-    const cachedMessage = payload.source === 'sqlite_cache'
+    const cachedMessage = payload.source === 'program_snapshot'
+      ? (payload.refreshing ? 'Son alınan gerçek program gösteriliyor; güncelleme arka planda sürüyor.' : 'Yarış programı hazır.')
+      : payload.source === 'sqlite_cache'
       ? `TJK geçici olarak yanıt vermedi; ${date || 'seçili gün'} için kaydedilmiş gerçek program gösteriliyor.`
       : String(payload.model || '').startsWith('walk-forward-')
         ? `TJK programı otomatik alındı.${warning} Walk-forward modeli, önceki yarışlardan at/jokey formunu kullanıyor; eğitim örneği: ${payload.modelTrainingRaces || 0}.`
         : `TJK programı otomatik alındı.${warning} Başlangıç modeli aktif; walk-forward modeli için yeterli geçmiş eğitim verisi bekleniyor.`
     const result = {
       races: normalizeLiveRaces(payload),
+      fetchedAt:payload.fetchedAt,
       city: payload.city || city,
       source: 'live',
       providerSource: payload.source || 'unknown',
@@ -97,6 +106,7 @@ async function fetchRaceProgram(city, date) {
       meetings: payload.meetings || [],
       message: cachedMessage,
     }
+    for(const analysis of payload.dailyAnalyses||[])dailyCache.save(currentApiUrl(),analysis.city,payload.date,analysisCacheSignature(result.races,analysis.city),analysis)
     if (result.races.length) {
       try { localStorage.setItem(programCacheKey(city, date), JSON.stringify({ savedAt: Date.now(), result })) } catch { /* Storage may be unavailable. */ }
     }
@@ -143,15 +153,41 @@ async function analysisRequest(url, options = {}) {
   } finally { clearTimeout(timer) }
 }
 
-export async function loadCachedDailyAnalysis(city, date) {
+export async function loadCachedDailyAnalysis(city, date, {program=[]}={}) {
+  const cached=getCachedDailyAnalysis(city,date,program)
+  if(cached)return cached
   const url = buildApiUrl('/api/analysis/daily')
   url.search = new URLSearchParams({ city, date }).toString()
   const { payload } = await analysisRequest(url)
-  return payload.analysis?.races ? payload : null
+  if(payload.analysis?.races){dailyCache.save(currentApiUrl(),city,date,analysisCacheSignature(program,city),payload);return payload}
+  return null
 }
 
 const pendingAnalyses = new Map()
-export async function runDailyAnalysis(city, date, { onProgress = () => {}, raceNo } = {}) {
+const preparationPlans=new Map()
+export function prepareProgramAnalyses(program,date,{priorityCity,shouldContinue=()=>true}={}){
+  const cities=[...new Set(program.map(r=>r.city).filter(Boolean))].sort((a,b)=>Number(b===priorityCity)-Number(a===priorityCity))
+  const key=`${currentApiUrl()}:${date}:${cities.map(city=>analysisCacheSignature(program,city)).join('|')}`
+  if(preparationPlans.has(key))return preparationPlans.get(key)
+  const task=(async()=>{
+    for(const city of cities){
+      if(!shouldContinue())break
+      try{
+        if(getCachedDailyAnalysis(city,date,program))continue
+        const cached=await loadCachedDailyAnalysis(city,date,{program})
+        if(!shouldContinue())break
+        if(!cached)await runDailyAnalysis(city,date,{program,raceNo:program.find(r=>r.city===city)?.no})
+      }catch{ /* One unavailable meeting must not block the other preparations. */ }
+    }
+  })()
+  preparationPlans.set(key,task)
+  while(preparationPlans.size>5)preparationPlans.delete(preparationPlans.keys().next().value)
+  return task
+}
+export function isDailyAnalysisPending(city,date){return pendingAnalyses.has(programCacheKey(city,date))}
+export async function runDailyAnalysis(city, date, { onProgress = () => {}, raceNo,program=[] } = {}) {
+  const signature=analysisCacheSignature(program,city),cached=getCachedDailyAnalysis(city,date,program)
+  if(cached)return cached
   const key = programCacheKey(city, date)
   let pending = pendingAnalyses.get(key)
   if (!pending) {
@@ -160,7 +196,7 @@ export async function runDailyAnalysis(city, date, { onProgress = () => {}, race
       pending.progress = progress
       for (const listener of pending.listeners) listener(progress)
     }
-    pending.promise = fetchDailyAnalysis(city, date, raceNo, report).finally(() => pendingAnalyses.delete(key))
+    pending.promise = fetchDailyAnalysis(city, date, raceNo, report).then(result=>{dailyCache.save(currentApiUrl(),city,date,signature,result);return result}).finally(() => pendingAnalyses.delete(key))
     pendingAnalyses.set(key, pending)
   }
   pending.listeners.add(onProgress)
@@ -177,7 +213,7 @@ async function fetchDailyAnalysis(city, date, raceNo, onProgress) {
   })
   if (response.status === 202 && payload.job?.id) {
     let job = payload.job
-    const deadline = Date.now() + 15 * 60_000
+    const deadline = Date.now() + 4 * 60_000
     while (job.status === 'running') {
       onProgress(job.progress)
       if (Date.now() > deadline) throw new Error('Analiz sunucuda sürüyor; biraz sonra tekrar kontrol edin.')

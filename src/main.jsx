@@ -4,7 +4,9 @@ import { loadHorseHistory, loadPerformance, loadPerformanceJob, loadProgramMeeti
 import { buildBudgetTicket, budgetBetTypes, getBudgetUnitPrice } from './data/ticketData'
 import './styles.css'
 import { orderAnalysisHorses, findRacePrediction } from './data/analysisView'
-import { getCachedRaceProgram, loadCachedDailyAnalysis, getServerAddress, connectServerAddress } from './data/raceData'
+import {validSurprise} from './data/surprisePolicy.js'
+import { getCachedRaceProgram, loadCachedDailyAnalysis, getCachedDailyAnalysis, isDailyAnalysisPending,prepareProgramAnalyses } from './data/raceData'
+import {analysisCacheSignature} from './data/dailyAnalysisCache.js'
 import { orderMeetings } from './data/meetingOrder'
 
 const factorLabels = { form: 'Son form', time: 'Derece', weight: 'Kilo', recency: 'Dinlenme', gate: 'Start', horseWin: 'Atın kazanma geçmişi', horseTopThree: 'Atın ilk üç geçmişi', jockeyWin: 'Jokeyin kazanma geçmişi', jockeyTopThree: 'Jokeyin ilk üç geçmişi', surfaceWin: 'Pist yüzeyi geçmişi', surfaceTopThree: 'Pist yüzeyi ilk üç geçmişi', breedWin: 'At kategorisi geçmişi', breedTopThree: 'At kategorisi ilk üç geçmişi' }
@@ -119,7 +121,7 @@ function TicketLab({ races, predictions, selectedRace, analysisStatus, commentar
       {!ticket.available
         ? <div className="ticket-market-empty"><strong>{ticket.reason}</strong><p>{analysisStatus !== 'ready' ? 'AI kuponu için günlük analiz, yorum kuponu için her ayakta numaralı editör sıralaması gerekir.' : `${selectedMarket?.label} için bütçeyi artır veya uygun sayıda ardışık koşu bulunan başka bir başlangıç koşusu seç.`}</p>{analysisStatus !== 'ready' && <button className="secondary-action" onClick={onRequestAnalysis} disabled={analysisStatus === 'loading'}>{analysisStatus === 'loading' ? 'Analiz ediliyor' : analysisStatus === 'error' ? 'AI analizini tekrar dene' : 'AI analizini al'}</button>}</div>
           : <>
-            {analysisStatus !== 'ready' && <div className="ticket-ai-pending"><span>{analysisStatus === 'error' ? 'AI analizi alınamadı.' : 'AI kuponu için günlük analiz gerekli.'}</span><button className="secondary-action" onClick={onRequestAnalysis} disabled={analysisStatus === 'loading'}>{analysisStatus === 'loading' ? 'Analiz ediliyor' : analysisStatus === 'error' ? 'Tekrar dene' : 'AI analizini al'}</button></div>}
+            {analysisStatus !== 'ready' && !ticket.coupons.some(coupon=>coupon.source==='ai') && <div className="ticket-ai-pending"><span>{analysisStatus === 'error' ? 'AI analizi alınamadı.' : 'AI kuponu için günlük analiz gerekli.'}</span><button className="secondary-action" onClick={onRequestAnalysis} disabled={analysisStatus === 'loading'}>{analysisStatus === 'loading' ? 'Analiz ediliyor' : analysisStatus === 'error' ? 'Tekrar dene' : 'AI analizini al'}</button></div>}
             <div className="ticket-market-summary"><div><strong>{ticket.marketLabel} · {ticket.couponCount} alternatif</strong><small>{ticket.coupons[0]?.legs.map((leg) => `${leg.raceNo}. koşu`).join(' → ')}</small></div><b>Kupon başı en çok {formatLira(ticket.budget)}</b></div>
             <div className="ticket-budget-meta"><span>{ticket.couponCount} alternatif</span><span>Tek misli · birim {formatLira(ticket.unitPrice)}</span><span>Her kupon bütçe tavanı ≤ {formatLira(ticket.budget)}</span></div>
             <div className="ai-coupon-list">{ticket.coupons.map((coupon) => <article className="ai-coupon" key={`${ticket.marketId}-${coupon.number}`}>
@@ -169,18 +171,19 @@ function App() {
   const [dataState, setDataState] = useState({ city: 'Tümü', source: 'loading', providerSource: 'loading', model: '', modelTrainingRaces: 0, providerUrls: [], failures: [], message: 'Canlı TJK programı alınıyor.' })
   const [debugState, setDebugState] = useState({ status: 'idle', payload: null, error: '' })
   const [dailyAnalysisState, setDailyAnalysisState] = useState({ status: 'idle', payload: null, error: '' })
+  const automaticAnalysisAttempts=useRef(new Set())
+  const preparationDate=useRef(null)
   const [commentaryState, setCommentaryState] = useState({ status: 'idle', payload: null, error: '' })
   const [historyState, setHistoryState] = useState({ status: 'idle', name: '', entries: [], error: '' })
   const [archiveState, setArchiveState] = useState({ status: 'idle', analyses: [], error: '' })
   const [performanceState, setPerformanceState] = useState({ status: 'idle', performance: null, job: null, error: '' })
   const [selectedArchiveIndex, setSelectedArchiveIndex] = useState(0)
   const [isRefreshing, setIsRefreshing] = useState(false)
-  const [serverAddress,setServerAddress]=useState(getServerAddress)
-  const [connectionState,setConnectionState]=useState({busy:false,message:''})
   const [isRefreshingArchive, setIsRefreshingArchive] = useState(false)
   const [lastUpdated, setLastUpdated] = useState('—')
   const race = races[selectedRace] || races[0] || emptyRace
-  const selectedDailyPrediction = dailyAnalysisState.payload?.analysis?.races?.find((item) => item.city === (race.city || dataState.city) && Number(item.raceNo) === Number(race.no)) || null
+  const rawDailyPrediction = dailyAnalysisState.payload?.analysis?.races?.find((item) => item.city === (race.city || dataState.city) && Number(item.raceNo) === Number(race.no)) || null
+  const selectedDailyPrediction = useMemo(()=>rawDailyPrediction ? {...rawDailyPrediction,surprise:validSurprise(race,rawDailyPrediction)} : null,[race,rawDailyPrediction])
   const analysisProgressText = dailyAnalysisState.progress?.phase === 'analyzing'
     ? `${dailyAnalysisState.progress.completed}/${dailyAnalysisState.progress.total} koşu tamamlandı`
     : 'Analiz verileri hazırlanıyor'
@@ -220,6 +223,8 @@ function App() {
   }, [])
   const selectedDay = dayOptions.find((item) => item.offset === selectedDayOffset) || dayOptions[1]
   const commentaryCity = race.city || selectedCity
+  preparationDate.current=selectedDay.apiDate
+  const analysisContextKey=analysisCacheSignature(races,commentaryCity)
   const hasLiveRaces = races.length > 0
   const sortedMeetings = useMemo(() => orderMeetings(programMeetings, races), [programMeetings, races])
   const liveCities = useMemo(() => [...new Set(races.map((item) => item.city).filter(Boolean))], [races])
@@ -234,18 +239,20 @@ function App() {
     }, 0)
   }
 
-  async function refreshProgram(city = selectedCity, dayOffset = selectedDayOffset) {
+  async function refreshProgram(city = selectedCity, dayOffset = selectedDayOffset, {silent=false} = {}) {
     const safeCity = isEventLike(city) ? selectedCity : normalizeCityInput(city, selectedCity)
     const safeDayOffset = isEventLike(dayOffset) ? selectedDayOffset : normalizeDayOffset(dayOffset, selectedDayOffset)
     const nextDay = dayOptions.find((item) => item.offset === safeDayOffset) || dayOptions[1]
-    const meetingRequestId = ++meetingRequestVersion.current
+    const meetingRequestId = silent ? meetingRequestVersion.current : ++meetingRequestVersion.current
     setIsRefreshing(true)
     const cached = getCachedRaceProgram(safeCity, nextDay.apiDate)
+    if(!silent){
     setRaces(cached?.races || [])
     setSelectedRace(0)
     setDataState(cached || { city: safeCity, source: 'loading', providerSource: 'loading', model: '', modelTrainingRaces: 0, providerUrls: [], failures: [], message: 'Canlı TJK programı alınıyor.' })
     setDebugState({ status: 'idle', payload: null, error: '' })
     setDailyAnalysisState({ status: 'idle', payload: null, error: '' })
+    }
     if (meetingsDate.current !== nextDay.apiDate) {
       setProgramMeetings(cached?.meetings || [])
       meetingsDate.current = nextDay.apiDate
@@ -272,9 +279,8 @@ function App() {
         failures: result.failures,
         message: result.message,
       })
-      setSelectedRace(0)
-      setSelectedCoupon(0)
-      setLastUpdated(new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }))
+      if(!silent){setSelectedRace(0);setSelectedCoupon(0)}
+      setLastUpdated(new Date(result.fetchedAt||Date.now()).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }))
     } catch (error) {
       if (meetingRequestId !== meetingRequestVersion.current) return
       if (meetingRequestId === meetingRequestVersion.current) setProgramMeetings([])
@@ -301,20 +307,23 @@ function App() {
     const requestedCity = !isEventLike(cityOverride) && typeof cityOverride === 'string' && cityOverride.trim()
       ? cityOverride
       : race.city || selectedCity
-    setDailyAnalysisState({ status: 'loading', payload: null, error: '' })
+    const ready=getCachedDailyAnalysis(requestedCity,selectedDay.apiDate,races)
+    if(ready){setDailyAnalysisState({status:'ready',payload:ready,error:'',city:requestedCity});return}
+    setDailyAnalysisState({ status: 'loading', payload: null, error: '',city:requestedCity })
     try {
       const result = await runDailyAnalysis(requestedCity, selectedDay.apiDate, {
+        program:races,
         raceNo: raceNoOverride,
         onProgress: progress => {
           if (contextVersion === meetingRequestVersion.current && requestVersion === analysisRequestVersion.current) {
-            setDailyAnalysisState(current => ({ ...current, progress }))
+            setDailyAnalysisState(current => ({ ...current, progress, payload:progress?.analysis ? {analysis:progress.analysis} : current.payload }))
           }
         },
       })
       if (contextVersion !== meetingRequestVersion.current || requestVersion !== analysisRequestVersion.current) return
       setDailyAnalysisState({ status: 'ready', payload: result, error: '' })
     } catch (error) {
-      if (contextVersion === meetingRequestVersion.current && requestVersion === analysisRequestVersion.current) setDailyAnalysisState({ status: 'error', payload: null, error: error.message })
+      if (contextVersion === meetingRequestVersion.current && requestVersion === analysisRequestVersion.current) setDailyAnalysisState(current=>({...current,status:'error',error:error.message}))
     }
   }
 
@@ -381,16 +390,39 @@ function App() {
     if (!hasPrediction) requestDailyAnalysis(city, Number(selected.no))
   }
 
+  useEffect(()=>{
+    const reconnect=()=>{if(document.visibilityState==='visible')void refreshProgram(selectedCity,selectedDayOffset,{silent:true})}
+    const timer=setInterval(reconnect,dataState.source==='unavailable'||dataState.source==='loading'?10000:60000)
+    window.addEventListener('online',reconnect);document.addEventListener('visibilitychange',reconnect)
+    return()=>{clearInterval(timer);window.removeEventListener('online',reconnect);document.removeEventListener('visibilitychange',reconnect)}
+  },[selectedCity,selectedDayOffset,dataState.source])
   useEffect(() => { refreshProgram(selectedCity, selectedDayOffset) }, [])
+  useEffect(()=>{
+    if(dataState.source!=='live'||selectedDay.offset!==0||!races.length)return
+    const date=selectedDay.apiDate
+    void prepareProgramAnalyses(races,date,{priorityCity:commentaryCity,shouldContinue:()=>preparationDate.current===date})
+  },[dataState.source,selectedDay.apiDate,analysisContextKey])
   useEffect(() => {
-    if (dataState.source !== 'live' || !commentaryCity || !races.length || dailyAnalysisState.status === 'loading') return
+    if (dataState.source !== 'live' || !commentaryCity || !races.length) return
+    if(dailyAnalysisState.status==='loading'&&dailyAnalysisState.city===commentaryCity)return
+    const ready=getCachedDailyAnalysis(commentaryCity,selectedDay.apiDate,races)
+    if(ready){setDailyAnalysisState({status:'ready',payload:ready,error:'',city:commentaryCity});return}
+    const attemptKey=`${selectedDay.apiDate}:${commentaryCity}:${analysisContextKey}`
+    if(automaticAnalysisAttempts.current.has(attemptKey)&&!isDailyAnalysisPending(commentaryCity,selectedDay.apiDate))return
     let cancelled = false
     const version = analysisRequestVersion.current
-    loadCachedDailyAnalysis(commentaryCity, selectedDay.apiDate).then(payload => {
-      if (payload && !cancelled && version === analysisRequestVersion.current) setDailyAnalysisState({ status: 'ready', payload, error: '' })
-    }).catch(() => {})
+    const prepare=()=>{
+      if(cancelled||version!==analysisRequestVersion.current)return
+      automaticAnalysisAttempts.current.add(attemptKey)
+      void requestDailyAnalysis(commentaryCity,Number(race.no))
+    }
+    loadCachedDailyAnalysis(commentaryCity, selectedDay.apiDate,{program:races}).then(payload => {
+      if(cancelled||version!==analysisRequestVersion.current)return
+      if(payload)setDailyAnalysisState({status:'ready',payload,error:'',city:commentaryCity})
+      else prepare()
+    }).catch(prepare)
     return () => { cancelled = true }
-  }, [commentaryCity, selectedDay.apiDate, dataState.source, races])
+  }, [commentaryCity, selectedDay.apiDate, dataState.source, analysisContextKey])
   useEffect(() => {
     if (dataState.source !== 'live' || !commentaryCity || commentaryCity === 'Tümü') {
       setCommentaryState({ status: 'idle', payload: null, error: '' })
@@ -482,20 +514,6 @@ function App() {
       </aside>
 
       <main className="main-content">
-        <details className="connection-settings" open={dataState.source==='unavailable'}>
-          <summary>Sunucu bağlantısı</summary>
-          <p>Evdeki sunucu için telefon ve bilgisayar aynı Wi-Fi ağına bağlı olmalı. Bilgisayar açık olmalı.</p>
-          <form onSubmit={async event=>{
-            event.preventDefault();setConnectionState({busy:true,message:'Bağlantı kontrol ediliyor…'})
-            try{await connectServerAddress(serverAddress);setConnectionState({busy:false,message:'Sunucuya bağlandı.'});await refreshProgram()}
-            catch(error){setConnectionState({busy:false,message:`Sunucuya ulaşılamadı. Adresi ve aynı Wi-Fi ağına bağlı olduğunu kontrol et. ${error.name==='TimeoutError'?'Bağlantı zaman aşımına uğradı.':error.message}`})}
-          }}>
-            <label htmlFor="server-address">Sunucu adresi</label>
-            <input id="server-address" value={serverAddress} onChange={e=>setServerAddress(e.target.value)} placeholder="http://192.168.1.21:8788" autoCapitalize="none" autoCorrect="off" inputMode="url" />
-            <button disabled={connectionState.busy} type="submit">{connectionState.busy?'Kontrol ediliyor…':'Bağlantıyı dene ve kaydet'}</button>
-          </form>
-          {connectionState.message&&<p role="status">{connectionState.message}</p>}
-        </details>
         <header className="topbar">
           <div className="mobile-brand"><span className="brand-mark animated-mark"><HorseMark /></span><span className="brand-wordmark">Ganyan<span>Zekası</span></span></div>
           <div className="location"><span className="pin">⌖</span><div><small>{activeView === 'history' ? 'ARŞİV MODU' : 'AKTİF PROGRAM'}</small><strong>{activeView === 'history' ? 'Geçmiş analiz arşivi' : `${dataState.city} · ${selectedDay.longDate}`}</strong></div></div>
@@ -577,13 +595,13 @@ function App() {
                   : <div className="empty-panel"><strong>Canlı program henüz alınamadı.</strong><p>{dataState.message} Uygulama artık mock veri göstermiyor; gerçek program gelince tüm koşular otomatik dolacak.</p><button className="secondary-action" onClick={() => refreshProgram()}>Tekrar dene</button></div>}
                 <button className="all-races" onClick={showCouponLab}>Kupon laboratuvarına geç <span>→</span></button>
               </section>
-              <section className="panel surprise-panel"><div className="panel-heading"><div><p className="eyebrow">SEÇİLİ KOŞU · {race.no}. KOŞU</p><h2>★ Sürpriz aday</h2></div></div>{selectedDailyPrediction?.surprise && raceHorses.some((horse) => horse.name === selectedDailyPrediction.surprise.horseName) ? <div className="surprise-body"><button className="surprise-horse" onClick={() => setSelectedHorseIndex(raceHorses.findIndex((horse) => horse.name === selectedDailyPrediction.surprise.horseName))}>{selectedDailyPrediction.surprise.horseName} <span>İncele →</span></button><p>{selectedDailyPrediction.surprise.reason}</p><small>İlk iki AI adayının dışında değerlendirilen alternatif. Kupona alınırsa ★ ile gösterilir.</small></div> : <div className="surprise-body"><p>{selectedDailyPrediction ? 'Bu koşuda yeterli kanıtla desteklenen bir sürpriz aday önerilmedi.' : 'Sürpriz aday ve gerekçesi, günlük AI analizi tamamlandığında burada görünür.'}</p></div>}</section></div>
+              <section className="panel surprise-panel"><div className="panel-heading"><div><p className="eyebrow">SEÇİLİ KOŞU · {race.no}. KOŞU</p><h2>★ Sürpriz aday</h2></div></div>{selectedDailyPrediction?.surprise && raceHorses.some((horse) => horse.name === selectedDailyPrediction.surprise.horseName) ? <div className="surprise-body"><button className="surprise-horse" onClick={() => setSelectedHorseIndex(raceHorses.findIndex((horse) => horse.name === selectedDailyPrediction.surprise.horseName))}>{selectedDailyPrediction.surprise.horseName} <span>İncele →</span></button><p>{selectedDailyPrediction.surprise.reason}</p><small>AGF ve AI sıralamasında ilk iki adayın dışında. Kupona alınırsa ★ ile gösterilir.</small></div> : <div className="surprise-body"><p>{selectedDailyPrediction ? 'AGF favorileri dışında yeterli kanıtla desteklenen sürpriz aday bulunamadı. AGF verisi eksikse sürpriz etiketi verilmez.' : 'Sürpriz aday ve gerekçesi, günlük AI analizi tamamlandığında burada görünür.'}</p></div>}</section></div>
 
               <section className="panel analysis-panel">
                 <div className="panel-heading"><div><p className="eyebrow">YAPAY ZEKA ANALİZİ</p><h2>{race.city ? `${race.city} · ` : ''}{race.no}. koşu detayı</h2></div><button className="secondary-action" onClick={() => requestDailyAnalysis(race.city || selectedCity)} disabled={dailyAnalysisState.status === 'loading' || dataState.source !== 'live'}>{dailyAnalysisState.status === 'loading' ? analysisProgressText : selectedDailyPrediction ? 'Günlük analiz hazır' : 'Günün AI tahminini al'}</button></div>
                 {dailyAnalysisState.status === 'loading' && <p className="panel-inline-note" role="status">{analysisProgressText}. Bu sayfayı açık bırakabilirsiniz; hazır sonuçlar otomatik gösterilecek.</p>}
                 {dailyAnalysisState.status === 'error' && <p className="debug-message error">{dailyAnalysisState.error}</p>}
-                {dailyAnalysisState.status === 'ready' && selectedDailyPrediction && <>
+                {selectedDailyPrediction && <>
                   <div className="panel-inline-note"><strong>Günlük analiz {dailyAnalysisState.payload.cached ? 'önbellekten getirildi' : 'oluşturuldu'}.</strong> {dailyAnalysisState.payload.analysis.summary}</div>
                   {selectedDailyPrediction && <section className="ai-rationale-panel">
                     <header className="ai-rationale-heading">
