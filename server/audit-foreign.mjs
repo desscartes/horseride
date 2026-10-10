@@ -1,0 +1,1 @@
+import {DatabaseSync} from 'node:sqlite';const d=new DatabaseSync('data/horseride.sqlite');const races=d.prepare('select race_json from historical_race_data').all().map(r=>JSON.parse(r.race_json));console.log({historicalRaces:races.length,foreignHistory:races.filter(r=>r.foreign).length});console.log(d.prepare('select city,count(*) races from races group by city').all());

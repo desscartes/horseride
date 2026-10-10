@@ -1,12 +1,15 @@
 {
-  "name": "horseride",
+  "name": "ganyanzekasi",
   "private": true,
   "version": "0.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "api": "node server/index.mjs",
-    "dev:api": "node server/index.mjs",
+    "dev:lan": "vite --host 0.0.0.0",
+    "api": "node --use-system-ca --env-file-if-exists=.env server/index.mjs",
+    "service": "node --use-system-ca server/service-supervisor.mjs",
+    "maintenance": "node --use-system-ca server/daily-maintenance.mjs",
+    "dev:api": "node --use-system-ca --env-file-if-exists=.env server/index.mjs",
     "build": "vite build",
     "preview": "vite preview",
     "android:add": "cap add android",
@@ -18,9 +21,10 @@
     "@capacitor/cli": "latest",
     "@capacitor/core": "latest",
     "@vitejs/plugin-react": "latest",
-    "vite": "latest",
+    "cheerio": "^1.2.0",
     "react": "latest",
-    "react-dom": "latest"
-  },
-  "devDependencies": {}
+    "react-dom": "latest",
+    "tjk-api": "^1.0.4",
+    "vite": "latest"
+  }
 }
