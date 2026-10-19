@@ -1,0 +1,1 @@
+export function recommendationSignature(coupons){return JSON.stringify(coupons.filter(c=>c.source==='ai').map(c=>c.legs.map(l=>({raceNo:Number(l.raceNo),horses:l.horses.map(h=>Number(h.number)).sort((a,b)=>a-b)}))))}

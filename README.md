@@ -1,54 +1,32 @@
-# HorseRide
+# Ganyan Zekası / HorseRide
 
-HorseRide, TJK programlarındaki koşuları veri ve model skorlarıyla incelemek için hazırlanmış web-first bir arayüzdür. Uygulama şu an demo veriyle çalışır; gerçek TJK veri kaynağı ve model servisi henüz bağlanmamıştır.
+Türkiye ve TJK programında yer alan yabancı yarışlar için veri toplama, yerel sayısal modeller, kanıta dayalı Türkçe yorumlar ve bütçeli kuponlar.
 
-## Çalıştırma
+## Güncel çalışma akışı
 
-```bash
-npm install
-npm run dev
+Node24 ve bağımlılıklar için `npm ci` kullanılır. `.env.example` dosyası yerel `.env` olarak yapılandırılır. Yerel yorum üretimi için Ollama ve belirtilen Qwen modelinin ayrıca hazır olması gerekir. API `npm run api` ile, geliştirme arayüzü `npm run dev` ile açılır. Mevcut ev sunucusunda API8788, telefon/web geçidi8790 portunu kullanır. Servis ve bakım ayrıntıları `OTOMATIK-SERVIS.md`, `docs/home-server.md` ve `DEVIR_NOTU.md` içindedir.
+
+Sayısal sıralamayı CatBoost modelleri üretir; yerel Qwen açıklama için kullanılır. `.env.example` yerel sağlayıcıyı seçer; ücretli servis anahtarı boş bırakılır. Ücretli sağlayıcıya geçiş ayrı bir yapılandırma kararıdır.
+
+## Canlı arayüz ve Android
+
+Bu checkout'taki JSX kaynak sürümü canlı ekranın tamamını henüz içermiyor. Canlı kupon ekranını kaybetmemek için:
+
+```powershell
+npm run build:production-ui
+npm run android:build:local
 ```
 
-API canlı TJK CSV’sini alırken programı yerel SQLite veritabanına yazar. Veritabanı `data/horseride.sqlite` altında tutulur ve git’e gönderilmez. Durum kontrolü için:
+Sürümlenen `production-ui/bootstrap` tabanı, kupon yamalarıyla birlikte boş checkout'ta yeniden üretilebilir. Eski `npm run build` / `android:sync` zinciri canlı dağıtım için kullanılmaz; `android:sync` bu nedenle açıklayıcı hata verir. Android betiği yerel Java/SDK/Gradle araçlarını, mevcut özel imza anahtarını ve doğru sürüm kodunu gerektirir. İmza anahtarı Git'te tutulmaz. Son yayımlanan ayrı uygulama kimliği `com.horseride.local`, sürümü1.34/kodu35'tir; yeni dağıtımda sürüm artırılır. Ayrıntılar `production-ui/README.md` içindedir.
 
-```bash
-curl http://localhost:8787/api/history/health
-curl "http://localhost:8787/api/history/horse?name=GOLDEN%20STARFIRE"
-```
+## Veri, modeller ve doğrulama
 
-Canlı veri adaptörü için `.env.example` dosyasını `.env` olarak kopyalayıp JSON dönen bir endpoint tanımlayın:
+`server/run-morning-preparation.mjs` sabah akışını, mevcut bakım/eğitim kilitlerini koruyarak çalıştırır. Gün içi program yenilemeleri sonradan yayımlanan toplantıları kapsar. Eksik değer bilinmiyor olarak kalır; ilk start ile eksik geçmiş aynı şey değildir. Gelecekteki sonuç/idman/hava bilgisi hedef yarışa taşınmaz. Resmî kaynak erişim engelleri aşılmaz.
 
-```bash
-VITE_RACE_API_URL=https://api.example.com/races/today
-```
+Adaylar kronolojik doğrulama ve test dönemlerinde mevcut modelle karşılaştırılır. Tam Python/JS özellik eşitliği, mevcut21gün/300yarış ve diğer terfi kapıları korunur; yeniden kullanılan testte iyi çıkan aday ayrıca ileri dönem kanıtı gerektirir. Kapsam denetimi, eğitim/test arasında kaynak bulunurluğu farklarını ayrıca raporlar; bu tanısal bilgi test üzerinde tekrar ayar yapmak için kullanılmaz.
 
-Endpoint şu formatı döndürmelidir: `{ "races": [ ... ] }`. TJK erişimi ve veri kullanım izni doğrulanmadan doğrudan scraping yapılmaz; sağlayıcı katmanı bu nedenle arayüzden ayrı tutulmuştur.
+Kupon yüzdesi ayaklardaki model kapsamlarının çarpımıdır; kalibre edilmiş kazanma oranı değildir. Hava tahmini bölgeseldir, resmî pist durumu değildir. Kaynak kapsamı ile ölçülmüş tahmin başarısı ayrı raporlanır.
 
-Üretim kontrolü:
+## Git kapsamı
 
-```bash
-npm run build
-```
-
-## Android
-
-Arayüz Capacitor ile Android kabuğuna alınmaya hazırdır. Android Studio ve Android SDK kurulu bir makinede:
-
-```bash
-npm run android:add
-npm run android:sync
-npm run android:open
-```
-
-İlk sürüm kapsamı:
-
-- Günlük yarış programı görünümü
-- Koşu bazlı model favorisi ve kazanma olasılığı
-- Risk profiline göre hazır kupon kartları
-- Mobil responsive web arayüzü
-
-## Model notu
-
-Canlı CSV adaptörü AGF alanını bilerek kullanmaz. Başlangıç skoru son form, en iyi derece, kilo, yarışa kalan gün ve start numarasından oluşur; bu henüz eğitilmiş bir makine öğrenmesi modeli değildir. Jokeyin geçmiş kazanma/başlama verisi mevcut ücretsiz CSV’de bulunmadığı için şu an skora dahil edilmez. Bir sonraki veri katmanı, izinli bir geçmiş sonuç kaynağıyla at ve jokey geçmişini toplamak, zaman bazlı backtest yapmak ve olasılıkları kalibre etmektir.
-
-Sonraki teknik adımlar: TJK veri erişim katmanı, geçmiş yarış veri modeli, model servisinin API olarak ayrıştırılması, oran kalibrasyonu ve kullanıcı kupon geçmişi.
+Git kaynak kodu, testleri, belgeleri ve üretilebilir arayüz tabanını içerir. `.env`, SQLite, `data/` model/veri arşivleri, imza anahtarları, yerel SDK/Python ortamları, APK ve `dist/` dışarıda tutulur. Yeni bilgisayarda yalnız Git clone yapmak eğitim verilerini veya etkin modelleri geri getirmez; izinli veri/model yedeği ayrıca gerekir. Anahtar/parola veya ham veri arşivi Git'e eklenmez.

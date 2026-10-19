@@ -1,0 +1,7 @@
+import {readFileSync,writeFileSync} from 'node:fs'
+import {createHash} from 'node:crypto'
+import {parseAustralianResultEvidence} from './australian-results.mjs'
+const dir='data/external/racing-australia/history',old=JSON.parse(readFileSync(dir+'/archive.json','utf8')),races=[],rejected=[]
+for(const url of new Set(old.races.map(r=>r.sourceUrl))){const ref=old.races.find(r=>r.sourceUrl===url),id=createHash('sha256').update(url).digest('hex').slice(0,16),parsed=parseAustralianResultEvidence(readFileSync(dir+'/'+id+'.html','utf8'),{date:ref.date,sourceUrl:url,observedAt:ref.observedAt});races.push(...parsed.races);rejected.push(...parsed.rejected)}
+const report={checkedAt:new Date().toISOString(),networkRequests:0,originalRaces:old.races.length,validatedOutcomeFields:races.length,trainingAccepted:0,rejected,scratched:races.reduce((n,r)=>n+r.scratched.length,0),runners:races.reduce((n,r)=>n+r.horses.length,0),finality:Object.fromEntries(['interim','explicit_final','not_explicit'].map(k=>[k,races.filter(r=>r.outcomeStatus===k).length])),from:races.map(r=>r.date).sort()[0],through:races.map(r=>r.date).sort().at(-1),requiredBeforeTraining:['official_identity_join_to_prestart_program','prestart_feature_availability','final_result_confirmation','duplicate_check_against_existing_archive','dated_pedigree_workouts_class_and_environment_coverage']}
+writeFileSync(dir+'/validated-outcomes.json',JSON.stringify({races},null,2));writeFileSync(dir+'/validation-report.json',JSON.stringify(report,null,2));console.log(JSON.stringify(report))

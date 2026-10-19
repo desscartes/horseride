@@ -1,6 +1,6 @@
 {
   "appId": "com.horseride.app",
-  "appName": "HorseRide",
+  "appName": "GanyanZekası",
   "webDir": "dist",
   "server": {
     "androidScheme": "https"
