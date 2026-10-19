@@ -21,7 +21,7 @@ try{previous=JSON.parse(await read(backup+'/last-build.json'))}catch{}
 if(current!==original.path&&current!==previous?.path)throw Error('Production UI changed independently; review before patching')
 const replace=(text,from,to)=>{if(text.split(from).length!==2)throw Error('Patch anchor is missing or ambiguous: '+from.slice(0,90));return text.replace(from,to)}
 let output=base
-const ticketSource=await read('src/data/ticketData.js')
+const ticketSource=(await read('src/data/ticketData.js')).replaceAll('\r\n','\n')
 let runner=ticketSource.match(/function getRunnerCandidates\([\s\S]+?(?=\nfunction getCommentaryCandidates)/)?.[0]
 let budget=ticketSource.slice(ticketSource.indexOf('export function buildBudgetTicket(')).replace(/^export /,'')
 if(!runner||!budget.startsWith('function buildBudgetTicket('))throw Error('Canonical ticket functions missing')
