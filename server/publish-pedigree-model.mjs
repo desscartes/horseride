@@ -1,3 +1,4 @@
+import {createHash} from 'node:crypto'
 import {readFile,writeFile,rename,mkdir} from 'node:fs/promises'
 import {evaluateTreeModel} from './ranking.mjs'
 import {promotionAllowed} from './maintenance-policy.mjs'
@@ -8,6 +9,7 @@ const report=await json(`${root}/report.json`),reference=await json(`${root}/ref
 const difference=Math.max(...reference.features.map((f,i)=>Math.abs(evaluateTreeModel(model,report.featureIndexes.map(j=>f[j]))-reference.scores[i])))
 if(!Number.isFinite(difference)||difference>1e-6)throw Error('Python/Node prediction parity failed')
 report.runtimeParityMaxDifference=difference
+report.verifiedArtifactSha256=createHash('sha256').update(await readFile(`${root}/live.json`)).digest('hex')
 // Parent-group evidence must be learned and prospective quality gates must pass.
 const eligible=report.pedigreeImportance>0&&promotionAllowed(report)
 report.enabled=eligible;report.promoted=eligible;report.shadowEnabled=!eligible

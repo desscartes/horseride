@@ -1,3 +1,4 @@
+import {createHash} from 'node:crypto'
 import './runtime-env.mjs'
 import {remoteDeployment} from './deployment-role.mjs'
 import { spawn } from 'node:child_process'
@@ -130,8 +131,6 @@ try {
       report.externalChartsPath = incumbent.externalChartsPath
       report.trainingDataPath = trainingPath
       report.dailyModelPath = `${output}/live.json`
-      const eligible = promotionAllowed(report)
-      report.enabled = eligible; report.shadowEnabled = !eligible; report.promoted = eligible
       // Python/JavaScript predictions must agree before a model can become active.
       const { evaluateTreeModel } = await import('./ranking.mjs')
       const reference = await json(`${output}/reference.json`)
@@ -139,6 +138,9 @@ try {
       const maxDifference = Math.max(...reference.features.map((f,i) => Math.abs(evaluateTreeModel(model,report.featureIndexes.map(index => f[index])) - reference.scores[i])))
       report.runtimeParityMaxDifference = maxDifference
       if (!Number.isFinite(maxDifference) || maxDifference > 1e-6) throw Error('Prediction runtime parity failed; activation rejected')
+      report.verifiedArtifactSha256=createHash('sha256').update(await readFile(report.dailyModelPath)).digest('hex')
+      const eligible=promotionAllowed(report)
+      report.enabled=eligible;report.shadowEnabled=!eligible;report.promoted=eligible
       await writeFile(reportPath, JSON.stringify(report,null,2))
       const latestTemp = `data/daily-models/latest-${country}.json.tmp`
       await writeFile(latestTemp, JSON.stringify({ reportPath, modelPath: report.dailyModelPath }))

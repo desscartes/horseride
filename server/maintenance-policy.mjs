@@ -15,7 +15,8 @@ export function collectionDates(today, lastDate) {
   return [...days].sort()
 }
 export function promotionAllowed(report) {
-  const e = report.evaluation
+  const e = report.evaluation,proof=report.prospectiveEvidence
+  if(report.fullRuntimeFeatureParity!==true||report.evaluationRole!=='prospective_prestart_paired'||!proof||proof.method!==report.method||proof.pairedPrestartVerified!==true||!/^([a-f0-9]{64})$/.test(report.verifiedArtifactSha256||'')||proof.modelSha256!==report.verifiedArtifactSha256)return false
   return Boolean(e && e.races >= 300 && e.days >= 21 && e.testFrom > e.candidateTrainedThrough && e.testFrom > e.incumbentTrainedThrough
     && e.improvementPoints >= 2 && e.dayBootstrap95?.[0] > 0
     && e.candidate.brier < e.incumbent.brier && e.candidate.winnerInTopThree >= e.incumbent.winnerInTopThree)

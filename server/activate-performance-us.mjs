@@ -1,6 +1,10 @@
+import {promotionAllowed} from './maintenance-policy.mjs'
+import {createHash} from 'node:crypto'
 import {readFile,writeFile,copyFile} from 'node:fs/promises'
 import assert from 'node:assert/strict'
 const root='data/foreign-models-performance',target='data/foreign-models',report=JSON.parse(await readFile(`${root}/US-report.json`,'utf8'))
+report.verifiedArtifactSha256=createHash('sha256').update(await readFile(`${root}/US-live.json`)).digest('hex')
+assert.ok(promotionAllowed(report),'Full runtime feature parity and matching independent prospective evidence required')
 assert.equal(report.enabled,true)
 assert.equal(report.featurePipeline,'performance_v1')
 assert.ok(report.incumbent.improvementPoints>=2&&report.incumbent.dayBootstrap95[0]>0)

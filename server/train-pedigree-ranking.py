@@ -81,5 +81,9 @@ report.pop('test',None);report.pop('incumbent',None);report.pop('withoutPerforma
 report.pop('validationChoices',None);report.pop('dailyTraining',None)
 report['archiveRaces']=len(rows);report['archiveDays']=len({r['date'] for r in rows})
 report['deploymentStatus']='shadow_validation'
+for stale in ['prospectiveEvidence','verifiedArtifactSha256','fullRuntimeFeatureParity']:
+    report.pop(stale,None)
+report['prospectiveRequired']=True
+report['evaluationRole']='retrospective_reused_holdout_requires_prospective'
 (root/'report.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
 print(json.dumps({'coverage':coverage,'pedigreeImportance':report['pedigreeImportance'],'evaluation':evaluation}),flush=True)

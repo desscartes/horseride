@@ -96,5 +96,9 @@ report = {**previous, 'country': country, 'method': previous['method'].split('_d
           'dailyTraining': {'through': through, 'threadCount':2, 'newRaceResults':sum(r['date']>previous['trainedThrough'] for r in rows)},
           'note':'Fixed incumbent features and parameters. Trained daily on completed earlier races; live model stays unchanged unless the separate chronological evaluation gate passes. No guaranteed accuracy gain.'}
 report.pop('test', None)  # Never copy old success percentages onto a newly trained candidate.
+for stale in ['prospectiveEvidence','verifiedArtifactSha256','fullRuntimeFeatureParity']:
+    report.pop(stale,None)
+report['prospectiveRequired']=True
+report['evaluationRole']='retrospective_reused_holdout_requires_prospective'
 (root/'report.json').write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
 print(json.dumps({'country':country,'trainedThrough':through,'races':len(rows),'evaluation':evaluation}), flush=True)
