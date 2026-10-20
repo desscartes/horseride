@@ -525,3 +525,9 @@ Son doğrulama:
 - Mevcut original545PDF+545metadata ve career338PDF+338metadata; source-sidecar kaybı0. Parsed4847+2013race. Yani eksikmeta yüzünden tüm eski kariyer kaybolmuş değil. ResmîGP-calendar.html200denetimi son30günlüklinkleri gösterdi:Sep20..Oct19,28geçmişchart. Tamkariyer sanılmasın.
 - Resmî Equibase CMS2024araştırmaveriseti duyurusu https://cms.equibase.com/node/262815 :2023yılıPP/chart için kayıt gerekiyor. Bağlı /handicappersdata.cfm buoturum403,erişimengeli aşılmadı; bugünküerişilebilirlik/kullanımlisansı doğrulanmadı, kullanıcıadınaformveyaemailgönderilmedi.
 - Kullanıcıya asyncmevcutlisanslıUSveriarşivi/sağlayıcısıvarmısoruldu; parolaveanahtaristenmedi. Yanıtgelmedendiğer işler durdurulmaz. Başarıhedefi henüzsağlanmadı.
+
+## 20 Ekim — program geçmişi bellek yükü azaltıldı
+- Programrefreshte listHistoricalRaces+globalgroups tümhamarşivi tutuyordu; streamingRankingHistories bir tamtakvimgünü+ülke grubunu tutar. Günbitmeden performance dayvariant hesapları bölünmez, hedef/futuregünler hariçtir. Identityversioncountrycache keyleri/snapshotkeyler ve sayısalmodel korunur. Çalışanbakıma dokunulmadı.
+- 4streaming/performance/contextpolicy testi passed. Gerçek frozenSep1..Oct4 34gün2294race20country-identityhistory eskiwholearchivegrouping iledeepEqual. verify-streaming-history.mjs+streaming-history-verification.json. Sayısal davranışeşitliği kanıtı, gerçek süre kazancı/başarıartışı ölçümü değil.
+- APIreload marker yeni küçükmemorypath için yazıldı; supervisor mevcutanalizlerbitinceyükler. Aktifmodel/predictionhistorydeğişmedi. Zenginleştirme15dkzaman aşımı önceki bakımda kayıtlı, onu bitmiş sayma; sonraki bakımın tamamlanması ayrıca doğrulanmalı.
+- Bakım4204 pedigreeexport480gün/races8326ya ilerledi, context11956waiting_maintenance; yenijob yok. Sonraki kontrol same session94856 ve state/log.

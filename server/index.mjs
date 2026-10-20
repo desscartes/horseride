@@ -1,3 +1,4 @@
+import {streamingRankingHistories} from './streaming-ranking-history.mjs'
 import {parseRacePrizes,restoreProgramPrizes} from './race-prizes.mjs'
 import {parseMaternalColumn} from './program-maternal-lines.mjs'
 import {recentLoadEvidence} from './recent-load-evidence.mjs'
@@ -60,7 +61,7 @@ import { parseWeight, parseRaceTime, horseIdentity, analysisFingerprint, program
 import { createRankingHistory, addRaceToHistory, addRankingDayToHistory, loadPerformanceShadowModel, loadNextShadowModel, loadRankingModel, loadForeignRankingModel, rankRaceLocally } from './ranking.mjs'
 import { summarizeWorkoutHistory } from './workout-history.mjs'
 import { saveHorseWorkouts } from './database.mjs'
-import { historicalDataRevision } from './database.mjs'
+import { historicalDataRevision,historicalRaceDates,iterateHistoricalDay } from './database.mjs'
 import {summarizeForecasts} from './forecast-metrics.mjs'
 import {foreignCoverage,racingCountry,scheduledMeetingDates} from './foreign-data.mjs'
 import {matchEquibaseWorkouts} from './equibase-workouts.mjs'
@@ -138,12 +139,8 @@ function locallyRankRaces(races,date){
     const historyStarted=Date.now(),cachedHistories=loadHistorySnapshot(snapshotKey)
     const histories=cachedHistories||new Map()
     if(!cachedHistories){
-    const groups=new Map()
-    for(const race of listHistoricalRaces())if(race.date<date){const country=race.foreign?racingCountry(race.city):'TR';if(!country)continue;const key=`${race.date}:${country}`;if(!groups.has(key))groups.set(key,{country,date:race.date,races:[]});groups.get(key).races.push(race)}
-    for(const [,group] of [...groups].sort(([a],[b])=>a.localeCompare(b))){
-      const versions=new Set([1,bundles.get(group.country)?.metadata.identityVersion||1,nextShadows.get(group.country)?.metadata.identityVersion||1,dailyShadows.get(group.country)?.metadata.identityVersion||1,overseasShadows.get(group.country)?.metadata.identityVersion||1,...(group.country==='TR'?[shadow?.metadata.identityVersion||1,pedigreeShadow?.metadata.identityVersion||1]:[])])
-      for(const identityVersion of versions){const key=identityVersion===2?`${group.country}:v2`:group.country;if(!histories.has(key))histories.set(key,createRankingHistory({identityVersion}));addRankingDayToHistory(histories.get(key),group.races,group.date)}
-    }
+    const rebuilt=streamingRankingHistories({dates:historicalRaceDates(),readDay:iterateHistoricalDay,targetDate:date,versionsForCountry:country=>new Set([1,bundles.get(country)?.metadata.identityVersion||1,nextShadows.get(country)?.metadata.identityVersion||1,dailyShadows.get(country)?.metadata.identityVersion||1,overseasShadows.get(country)?.metadata.identityVersion||1,...(country==='TR'?[shadow?.metadata.identityVersion||1,pedigreeShadow?.metadata.identityVersion||1]:[])])})
+    for(const [key,value]of rebuilt)histories.set(key,value)
     saveHistorySnapshot(snapshotKey,histories,{onEvent:details=>analysisLog('ranking_history_cache',{date,...details})})
     }
     analysisLog('ranking_history_ready',{date,cached:Boolean(cachedHistories),durationMs:Date.now()-historyStarted})
