@@ -164,12 +164,7 @@ export function loadNextShadowModel(country){
   }catch{return null}
 }
 
-export function rankRaceLocally(race,date,history,bundle){
-  if(!bundle&&racingCountry(race.city)==='AU')return {...race,rankingSource:'program_baseline',rankingCountry:'AU',rankingEvidence:{trainedModelAvailable:false,calibratedWinProbability:false,reason:'Avustralya için doğrulanmış etkin model yok; program puanlaması kullanılıyor.'}}
-  if(!bundle||bundle.metadata.trainedThrough>=date)return race
-  if(bundle.metadata.breed&&bundle.metadata.breed!==(/ARAP/i.test(race.conditions||'')?'arabian':'thoroughbred'))return race
-  const domestic=['İstanbul','Ankara','İzmir','Bursa','Adana','Kocaeli','Antalya','Diyarbakır','Elazığ','Şanlıurfa'].map(key)
-  if(bundle.metadata.country ? racingCountry(race.city)!==bundle.metadata.country : race.foreign||!domestic.includes(key(race.city)))return race
+export function localRankingFeatureVectors(race,date,history,bundle){
   if(bundle.metadata.australianSchemaVersion===1)race=enrichAustralianRaces([race],date)[0]
   const au=bundle.metadata.australianSchemaVersion===1?australianFeatures(race,date):null
   const features=raceFeatures(race,date,history)
@@ -181,6 +176,17 @@ export function rankRaceLocally(race,date,history,bundle){
   const workoutSpeed=bundle.metadata.featurePipeline==='intelligence_workout_v1'?officialWorkoutSpeedFeatures(race,date):null
   const context=bundle.metadata.featurePipeline==='intelligence_context_v1'&&bundle.metadata.priorRaceContextSchemaVersion===1?priorRaceContext(race,date,bundle.externalHistory):null
   const vectors=features.map((values,i)=>[...values,...(country?externalChartFeatures(race.horses[i],date,country,bundle.externalHistory):[]),...(advanced?advanced[i]:[]),...(pace?pace[i]:[]),...(intelligence?intelligence[i]:[]),...(pedigree?pedigree[i]:[]),...(workoutSpeed?workoutSpeed[i]:[]),...(au?au[i]:[]),...(context?context[i]:[])])
+  return {race,country,features,advanced,vectors}
+}
+
+export function rankRaceLocally(race,date,history,bundle){
+  if(!bundle&&racingCountry(race.city)==='AU')return {...race,rankingSource:'program_baseline',rankingCountry:'AU',rankingEvidence:{trainedModelAvailable:false,calibratedWinProbability:false,reason:'Avustralya için doğrulanmış etkin model yok; program puanlaması kullanılıyor.'}}
+  if(!bundle||bundle.metadata.trainedThrough>=date)return race
+  if(bundle.metadata.breed&&bundle.metadata.breed!==(/ARAP/i.test(race.conditions||'')?'arabian':'thoroughbred'))return race
+  const domestic=['İstanbul','Ankara','İzmir','Bursa','Adana','Kocaeli','Antalya','Diyarbakır','Elazığ','Şanlıurfa'].map(key)
+  if(bundle.metadata.country ? racingCountry(race.city)!==bundle.metadata.country : race.foreign||!domestic.includes(key(race.city)))return race
+  const built=localRankingFeatureVectors(race,date,history,bundle);race=built.race
+  const {country,features,advanced,vectors}=built
   const scores=vectors.map(values=>evaluateTreeModel(bundle.model,bundle.metadata.featureIndexes?bundle.metadata.featureIndexes.map(i=>values[i]):values)/bundle.metadata.temperature)
   const maximum=Math.max(...scores),exp=scores.map(v=>Math.exp(v-maximum)),total=exp.reduce((a,b)=>a+b,0)
   const extended=bundle.metadata.inputs?.includes('workouts')&&bundle.metadata.inputs?.includes('official_weather')
