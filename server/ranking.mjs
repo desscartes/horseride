@@ -1,3 +1,4 @@
+import {priorRaceContext} from './prior-race-context.mjs'
 import {enrichAustralianRaces} from './australian-form.mjs'
 import {australianFeatures} from './australian-features.mjs'
 import {officialWorkoutSpeedFeatures,officialWorkoutSpeedFeatureNames} from './official-workout-speed.mjs'
@@ -173,12 +174,13 @@ export function rankRaceLocally(race,date,history,bundle){
   const au=bundle.metadata.australianSchemaVersion===1?australianFeatures(race,date):null
   const features=raceFeatures(race,date,history)
   const country=bundle.metadata.country
-  const intelligence=['intelligence_v1','intelligence_workout_v1'].includes(bundle.metadata.featurePipeline)?intelligenceFeatures(race,date,history.intelligence,bundle.externalHistory,{legacy:bundle.metadata.intelligenceSchemaVersion!==2}):null
-  const advanced=['performance_v1','performance_v2','pedigree_v1','intelligence_v1','intelligence_workout_v1'].includes(bundle.metadata.featurePipeline)?performanceFeatures(race,date,history.performance):null
-  const pedigree=['pedigree_v1','intelligence_v1','intelligence_workout_v1'].includes(bundle.metadata.featurePipeline)?pedigreeFeatures(race,date,history.pedigree):null
-  const pace=country==='US'&&['performance_v2','intelligence_v1','intelligence_workout_v1'].includes(bundle.metadata.featurePipeline)?paceFeatures(race,date,bundle.paceHistory,equibaseTracks[race.city]?.name):null
+  const intelligence=['intelligence_v1','intelligence_workout_v1','intelligence_context_v1'].includes(bundle.metadata.featurePipeline)?intelligenceFeatures(race,date,history.intelligence,bundle.externalHistory,{legacy:bundle.metadata.intelligenceSchemaVersion!==2}):null
+  const advanced=['performance_v1','performance_v2','pedigree_v1','intelligence_v1','intelligence_workout_v1','intelligence_context_v1'].includes(bundle.metadata.featurePipeline)?performanceFeatures(race,date,history.performance):null
+  const pedigree=['pedigree_v1','intelligence_v1','intelligence_workout_v1','intelligence_context_v1'].includes(bundle.metadata.featurePipeline)?pedigreeFeatures(race,date,history.pedigree):null
+  const pace=country==='US'&&['performance_v2','intelligence_v1','intelligence_workout_v1','intelligence_context_v1'].includes(bundle.metadata.featurePipeline)?paceFeatures(race,date,bundle.paceHistory,equibaseTracks[race.city]?.name):null
   const workoutSpeed=bundle.metadata.featurePipeline==='intelligence_workout_v1'?officialWorkoutSpeedFeatures(race,date):null
-  const vectors=features.map((values,i)=>[...values,...(country?externalChartFeatures(race.horses[i],date,country,bundle.externalHistory):[]),...(advanced?advanced[i]:[]),...(pace?pace[i]:[]),...(intelligence?intelligence[i]:[]),...(pedigree?pedigree[i]:[]),...(workoutSpeed?workoutSpeed[i]:[]),...(au?au[i]:[])])
+  const context=bundle.metadata.featurePipeline==='intelligence_context_v1'&&bundle.metadata.priorRaceContextSchemaVersion===1?priorRaceContext(race,date,bundle.externalHistory):null
+  const vectors=features.map((values,i)=>[...values,...(country?externalChartFeatures(race.horses[i],date,country,bundle.externalHistory):[]),...(advanced?advanced[i]:[]),...(pace?pace[i]:[]),...(intelligence?intelligence[i]:[]),...(pedigree?pedigree[i]:[]),...(workoutSpeed?workoutSpeed[i]:[]),...(au?au[i]:[]),...(context?context[i]:[])])
   const scores=vectors.map(values=>evaluateTreeModel(bundle.model,bundle.metadata.featureIndexes?bundle.metadata.featureIndexes.map(i=>values[i]):values)/bundle.metadata.temperature)
   const maximum=Math.max(...scores),exp=scores.map(v=>Math.exp(v-maximum)),total=exp.reduce((a,b)=>a+b,0)
   const extended=bundle.metadata.inputs?.includes('workouts')&&bundle.metadata.inputs?.includes('official_weather')

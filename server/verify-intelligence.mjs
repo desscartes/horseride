@@ -1,3 +1,4 @@
+import {priorRaceContext} from './prior-race-context.mjs'
 import {enrichAustralianRaces} from './australian-form.mjs'
 import {australianFeatures} from './australian-features.mjs'
 import {officialWorkoutSpeedFeatures,officialWorkoutSpeedFeatureNames} from './official-workout-speed.mjs'
@@ -45,7 +46,8 @@ for(const report of summary.countries){
  const base=raceFeatures(race,ref.date,history),extra=performanceFeatures(race,ref.date,history.performance),pace=report.country==='US'?paceFeatures(race,ref.date,paces,equibaseTracks[race.city]?.name):null
  const intelligence=intelligenceFeatures(race,ref.date,history.intelligence,external,{legacy:report.intelligenceSchemaVersion!==2}),family=pedigreeFeatures(race,ref.date,history.pedigree)
  const workoutSpeed=report.featurePipeline==='intelligence_workout_v1'?officialWorkoutSpeedFeatures(race,ref.date):null
- const vectors=base.map((f,i)=>[...f,...(report.country==='TR'?[]:externalChartFeatures(race.horses[i],ref.date,report.country,external)),...extra[i],...(pace?pace[i]:[]),...intelligence[i],...family[i],...(workoutSpeed?workoutSpeed[i]:[]),...(au?au[i]:[])])
+ const context=report.featurePipeline==='intelligence_context_v1'&&report.priorRaceContextSchemaVersion===1?priorRaceContext(race,ref.date,external):null
+ const vectors=base.map((f,i)=>[...f,...(report.country==='TR'?[]:externalChartFeatures(race.horses[i],ref.date,report.country,external)),...extra[i],...(pace?pace[i]:[]),...intelligence[i],...family[i],...(workoutSpeed?workoutSpeed[i]:[]),...(au?au[i]:[]),...(context?context[i]:[])])
  for(const [i,name]of ref.horses.entries())assert.deepEqual(vectors[race.horses.findIndex(h=>h.name===name)],ref.features[i],'Runtime / export feature mismatch')
  report.runtimeParityMaxDifference=delta;report.fullRuntimeFeatureParity=true
  writeFileSync(`${folder}/report.json`,JSON.stringify(report,null,2))
