@@ -1,7 +1,7 @@
-param(
+﻿param(
     [string]$ToolRoot = 'C:\Users\desscartes\Documents\Codex\tools\android',
-    [string]$VersionName = '1.34',
-    [int]$VersionCode = 35,
+    [string]$VersionName = '1.35',
+    [int]$VersionCode = 36,
     [string]$PackageId = 'com.horseride.local',
     [string]$AppName = 'Ganyan Zekası Yeni',
     [switch]$Sign

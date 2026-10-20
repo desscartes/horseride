@@ -43,6 +43,15 @@ component=replace(component,']},e)})})]})}',']},`${n.ordinal||0}-${e}`)})})]})}'
 component=replace(component,'(0,j.jsx)(`strong`,{children:e.horses.map(e=>e.number).join(` · `)})','(0,j.jsx)(`strong`,{children:e.horses.map(e=>e.number).join(` · `)}),(0,j.jsx)(`small`,{className:`coupon-leg-surprise`,title:e.surpriseSuggestion?.reason,children:__surpriseSuggestionText(e.surpriseSuggestion)})')
 output=output.slice(0,start)+component+output.slice(end)
 output=replace(output,'},e.number))})]},`${e.number}-${t.raceNo}`)','},e.number))}),(0,j.jsx)(`small`,{className:`coupon-leg-surprise`,title:t.surpriseSuggestion?.reason,children:__surpriseSuggestionText(t.surpriseSuggestion,true)})]},`${e.number}-${t.raceNo}`)')
+output=replace(output,'if(n===2||!(e.retryable||e instanceof TypeError))throw e','if(n===2||!(e.retryable||e instanceof TypeError)){if(e instanceof TypeError)e.message=`Sunucuya ulaşılamadı. Bağlantı yeniden denenecek.`;throw e}')
+// Versioned simulation screen shares the deployed React runtime and API address.
+output=replace(output,'e===`report`?(0,j.jsx)(Ze,{})','e===`simulation`?(0,j.jsx)(__Simulation,{}):e===`report`?(0,j.jsx)(Ze,{})')
+output=replace(output,'className:`mobile-bottom-nav`,"aria-label":`Ana menü`,children:[','className:`mobile-bottom-nav`,"aria-label":`Ana menü`,children:[(0,j.jsxs)(`button`,{className:e===`simulation`?`active`:``,onClick:()=>{t(`simulation`),window.scrollTo({top:0})},children:[(0,j.jsx)(`span`,{children:`◇`}),`Simülasyon`]}),')
+output=replace(output,'className:e===`report`?`nav-item active`:`nav-item`,onClick:()=>t(`report`)','className:e===`simulation`?`nav-item active`:`nav-item`,onClick:()=>t(`simulation`),children:`◇ Simülasyon`}),(0,j.jsxs)(`button`,{className:e===`report`?`nav-item active`:`nav-item`,onClick:()=>t(`report`)')
+output=replace(output,'children:e===`report`?`Uygulama raporu`','children:e===`simulation`?`Simülasyon`:e===`report`?`Uygulama raporu`')
+output=replace(output,'children:e===`report`?`Tahmin, ilk üç başarısı ve altılı sonuçları.`','children:e===`simulation`?`Modelin günlük sanal altılı seçimleri ve sonuçları.`:e===`report`?`Tahmin, ilk üç başarısı ve altılı sonuçları.`')
+output='import {renderSimulation as __renderSimulation} from "./simulation-view-v1.js";\nfunction __Simulation(){return __renderSimulation(s,T)}\n'+output
+await copyFile('src/data/simulationView.js','dist/assets/simulation-view-v1.js')
 output='import {couponChanceText as __couponChanceText} from "./coupon-chance-v1.js";\nimport {legSurpriseSuggestion as __legSurpriseSuggestion,surpriseSuggestionText as __surpriseSuggestionText} from "./coupon-surprise-v2.js";\n'+output
 await writeFile('dist/assets/coupon-surprise-v2.js',(await read('src/data/couponSurpriseSuggestion.js')).replace("'./surprisePolicy.js'","'./coupon-surprise-policy-v2.js'"))
 await copyFile('src/data/surprisePolicy.js','dist/assets/coupon-surprise-policy-v2.js')
@@ -54,4 +63,6 @@ let next=html.replace(current,path)
 if(!next.includes('/assets/coupon-ui-v2.css'))next=next.replace('</head>','<link rel="stylesheet" href="/assets/coupon-ui-v2.css">\n</head>')
 await writeFile('dist/index.html',next)
 await writeFile(backup+'/last-build.json',JSON.stringify({path,builtAt:new Date().toISOString(),canonicalFunctions:['getRunnerCandidates','buildBudgetTicket'],base:original.path},null,2))
+await writeFile('dist/assets/simulation-v1.css','.mobile-bottom-nav{grid-template-columns:repeat(5,minmax(0,1fr))!important}.simulation-view{padding:16px 0 80px}.simulation-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px}.simulation-stat,.simulation-ticket{padding:20px;border:1px solid #344b5b;border-radius:22px;background:#102331;margin:14px 0}.simulation-stat strong,.simulation-stat small,.simulation-legs strong,.simulation-legs small{display:block}.simulation-stat strong{font-size:22px;margin-top:8px}.simulation-legs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:16px 0}.simulation-legs>div{background:#091722;padding:10px;border-radius:10px;overflow-wrap:anywhere}.simulation-note{font-size:12px;line-height:1.7;color:#a6b9c8}')
+let finalHtml=await read('dist/index.html');if(!finalHtml.includes('/assets/simulation-v1.css'))await writeFile('dist/index.html',finalHtml.replace('</head>','<link rel="stylesheet" href="/assets/simulation-v1.css">\n</head>'))
 console.log(JSON.stringify({path,base:original.path,bytes:Buffer.byteLength(output)}))

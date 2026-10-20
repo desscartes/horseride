@@ -6,7 +6,7 @@ import {localDay,shiftDay} from './maintenance-policy.mjs'
 import {jsonTransfer} from './json-transfer.mjs'
 
 const defaultRoot=fileURLToPath(new URL('../dist/',import.meta.url))
-const publicReads=new Set(['/api/races','/api/meetings','/api/analysis/daily','/api/commentary','/api/social-coupons','/api/history/horse','/api/history/races','/api/performance','/api/application-report','/api/daily-ticket','/api/coupon-showcase','/api/analysis/usage'])
+const publicReads=new Set(['/api/simulation','/api/races','/api/meetings','/api/analysis/daily','/api/commentary','/api/social-coupons','/api/history/horse','/api/history/races','/api/performance','/api/application-report','/api/daily-ticket','/api/coupon-showcase','/api/analysis/usage'])
 export function createPublicGateway({upstream='http://127.0.0.1:8788',root=defaultRoot,fetcher=fetch}={}){
  const directory=resolve(root)
  const recordings=new Map()

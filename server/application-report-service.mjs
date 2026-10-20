@@ -3,7 +3,7 @@ import {parseOfficialMarkets,officialStarts} from '../src/data/officialMarkets.j
 import {parseSixLegCsv,officialSixLegCsvUrl} from './six-leg-starts.mjs'
 import {sixLegStarts} from './social-coupons.mjs'
 import {optimalHundredTicket,summarizeApplication,reportStart} from './application-report.mjs'
-import {storeApplicationTickets,applicationTickets,applicationOutcomes,listApplicationForecasts,updateApplicationSettlement} from './database.mjs'
+import {updateApplicationTicketResultSource,storeApplicationTickets,applicationTickets,applicationOutcomes,listApplicationForecasts,updateApplicationSettlement} from './database.mjs'
 import {localDay} from './maintenance-policy.mjs'
 import {horseIdentity} from './data-quality.mjs'
 import {racingCountry} from './foreign-data.mjs'
@@ -49,7 +49,7 @@ export async function captureApplicationTickets(date=localDay(),{request=fetch,n
 const reportCache=new Map()
 export function applicationReport(options={}){
  const today=localDay(),key=JSON.stringify([today,options]),cached=reportCache.get(key);if(cached&&Date.now()-cached.at<60000)return cached.value
- const source=options.source||'numeric',snapshots=listApplicationForecasts(reportStart,today,source),value=summarizeApplication({snapshots,surprises:source==='daily_ai'?snapshots:listApplicationForecasts(reportStart,today,'daily_ai'),outcomes:applicationOutcomes(reportStart),tickets:applicationTickets(reportStart).filter(t=>t.algorithm!=='optimal-100-v1'),today,...options})
+ const source=options.source||'numeric',snapshots=listApplicationForecasts(reportStart,today,source),value=summarizeApplication({snapshots,surprises:source==='daily_ai'?snapshots:listApplicationForecasts(reportStart,today,'daily_ai'),outcomes:applicationOutcomes(reportStart),tickets:applicationTickets(reportStart).filter(t=>t.algorithm!=='optimal-100-v1'&&t.source!=='simulation'),today,...options})
  if(reportCache.size>=24)reportCache.delete(reportCache.keys().next().value);reportCache.set(key,{at:Date.now(),value});return value
 }
 export function dailyApplicationTicket(date=localDay()){
@@ -70,6 +70,11 @@ export function parseLegDividends(csv){
  }return [...new Map(found.map(r=>[`${r.ordinal}:${r.endingRaceNo}:${r.text}`,r])).values()]
 }
 export async function settleApplicationPayouts({request=fetch}={}){
+ for(const t of applicationTickets(reportStart).filter(t=>t.source==='simulation'&&!t.resultCsvUrl)){
+  const p=readServedProgram(t.date),u=p?.providerUrls?.find(u=>{try{return new URL(u).hostname==='medya-cdn.tjk.org'&&horseIdentity(decodeURIComponent(new URL(u).pathname)).endsWith(horseIdentity(`${t.city}-GunlukYarisProgrami-TR.csv`))}catch{return false}})
+  if(u)updateApplicationTicketResultSource(t.id,u.replaceAll('GunlukYarisProgrami','GunlukYarisSonuclari'))
+ }
+
  const now=new Date().toISOString(),groups=new Map()
  for(const ticket of applicationTickets(reportStart).filter(t=>t.algorithm!=='optimal-100-v1'&&t.resultCsvUrl&&!t.officialResult&&t.scheduledStart<now)){const key=`${ticket.date}:${ticket.city}`;if(!groups.has(key))groups.set(key,[]);groups.get(key).push(ticket)}
  const results=[]

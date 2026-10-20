@@ -2510,6 +2510,7 @@ export const server = createServer(async (request, response) => {
     if(!['week','total'].includes(period)||!['all','domestic','foreign'].includes(scope)||!['numeric','daily_ai'].includes(source))return sendJson(response,400,{error:'Geçersiz rapor filtresi.'})
     try{return sendJson(response,200,applicationReport({period,scope,source}))}catch(error){console.error('Application report:',error.message);return sendJson(response,503,{error:'Rapor güncelleniyor. Kısa süre sonra tekrar deneyin.'})}
   }
+  if(requestUrl.pathname==='/api/simulation'&&request.method==='GET'){try{const {simulationReport}=await import('./simulation-service.mjs');return sendJson(response,200,simulationReport())}catch(error){console.error('Simulation:',error.message);return sendJson(response,503,{error:'Simülasyon güncelleniyor.'})}}
   if(requestUrl.pathname==='/api/coupon-showcase'&&request.method==='GET'){
    const date=requestUrl.searchParams.get('date')||localDay(),city=requestUrl.searchParams.get('city')
    if(!/^\d{4}-\d{2}-\d{2}$/.test(date))return sendJson(response,400,{error:'Geçersiz tarih.'})

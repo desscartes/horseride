@@ -599,3 +599,20 @@ export function findFreshSourceSnapshot(providerUrl, maxAgeMs) {
   if (!snapshot || Date.now() - Date.parse(snapshot.fetchedAt) > maxAgeMs) return null
   return snapshot.content
 }
+
+// Simulation reserves and immutable tickets are committed together across processes.
+database.exec('CREATE TABLE IF NOT EXISTS simulation_days(date TEXT PRIMARY KEY,week TEXT NOT NULL,payload_json TEXT NOT NULL)')
+export function simulationDays(){return database.prepare('SELECT payload_json FROM simulation_days ORDER BY date DESC').all().map(r=>JSON.parse(r.payload_json))}
+export function reserveSimulationDay(day){
+ database.exec('BEGIN IMMEDIATE')
+ try{
+  if(database.prepare('SELECT 1 FROM simulation_days WHERE date=?').get(day.date)){database.exec('COMMIT');return false}
+  const spent=simulationDays().filter(d=>d.week===day.week).reduce((n,d)=>n+d.spent,0)
+  if(day.spent<0||spent+day.spent>1000.001||day.tickets.length>2||day.tickets.some(t=>t.capturedAt>=t.scheduledStart||Date.now()>=Date.parse(t.scheduledStart))||Math.abs(day.spent-day.tickets.reduce((n,t)=>n+t.cost,0))>0.001)throw Error('Simulation budget or prestart guard rejected')
+  storeApplicationTickets(day.tickets)
+  database.prepare('INSERT INTO simulation_days VALUES(?,?,?)').run(day.date,day.week,JSON.stringify(day))
+  database.exec('COMMIT');return true
+ }catch(e){database.exec('ROLLBACK');throw e}
+}
+
+export function updateApplicationTicketResultSource(id,url){const row=database.prepare('SELECT payload_json FROM application_tickets WHERE id=?').get(id);if(row){const t=JSON.parse(row.payload_json);if(!t.resultCsvUrl)database.prepare('UPDATE application_tickets SET payload_json=? WHERE id=?').run(JSON.stringify({...t,resultCsvUrl:url}),id)}}

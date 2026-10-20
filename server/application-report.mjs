@@ -6,7 +6,7 @@ import {officialMarketAllowed} from '../src/data/officialMarkets.js'
 import {reportBreakdowns} from './report-breakdowns.mjs'
 export const reportStart='2026-10-10'
 export function optimalHundredTicket(races,date,ordinal,{now=new Date().toISOString(),legCount=6,budget=100}={}){
- if(![30,50,100,1000].includes(budget))return null
+ if(!Number.isInteger(budget)||budget<1||budget>1000)return null
  if(![5,6].includes(legCount)||races.length!==legCount||!officialMarketAllowed(races[0],legCount)||!races[0][legCount===6?'sixLegStarts':'fiveLegStarts'].includes(ordinal)||races.some((r,i)=>Number(r.no)!==Number(races[0].no)+i||r.city!==races[0].city))return null
  const start=scheduledRaceStart(races[0].scheduledDate||date,races[0].time,{calendarDate:Boolean(races[0].scheduledDate)})
  if(!start||now>=start||races.some(r=>r.rankingSource!=='local_trained_model'))return null
