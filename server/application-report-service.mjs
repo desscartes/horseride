@@ -70,7 +70,7 @@ export function parseLegDividends(csv){
  }return [...new Map(found.map(r=>[`${r.ordinal}:${r.endingRaceNo}:${r.text}`,r])).values()]
 }
 export async function settleApplicationPayouts({request=fetch}={}){
- for(const t of applicationTickets(reportStart).filter(t=>t.source==='simulation'&&!t.resultCsvUrl)){
+ for(const t of applicationTickets(reportStart).filter(t=>t.officialVerified&&!t.resultCsvUrl)){
   const p=readServedProgram(t.date),u=p?.providerUrls?.find(u=>{try{return new URL(u).hostname==='medya-cdn.tjk.org'&&horseIdentity(decodeURIComponent(new URL(u).pathname)).endsWith(horseIdentity(`${t.city}-GunlukYarisProgrami-TR.csv`))}catch{return false}})
   if(u)updateApplicationTicketResultSource(t.id,u.replaceAll('GunlukYarisProgrami','GunlukYarisSonuclari'))
  }

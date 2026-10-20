@@ -19,7 +19,7 @@ export function optimalHundredTicket(races,date,ordinal,{now=new Date().toISOStr
   for(let count=1;count<=Math.min(horses.length,limit);count++){
    mass+=Number(horses[count-1].probability)/total
    for(const [combinations,value]of states){const n=combinations*count;if(n>limit)continue;const score=value.score*mass
-    if(!next.has(n)||next.get(n).score<score)next.set(n,{score,legs:[...value.legs,{raceNo:Number(race.no),modelVersion:race.rankingMethod,horses:horses.slice(0,count).map(h=>({number:Number(h.no),name:h.name})),estimatedCoverage:mass}]})
+    if(!next.has(n)||next.get(n).score<score)next.set(n,{score,legs:[...value.legs,{raceNo:Number(race.no),modelVersion:race.rankingMethod,horses:horses.slice(0,count).map(h=>({number:Number(h.no),name:h.name,estimatedProbability:Number(h.probability)/total})),estimatedCoverage:mass}]})
    }
   }states=next
  }

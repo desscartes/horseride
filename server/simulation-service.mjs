@@ -1,3 +1,4 @@
+import {pairModelCoverage} from './coupon-pair-coverage.mjs'
 import {simulationDays,reserveSimulationDay,applicationTickets} from './database.mjs'
 import {readServedProgram} from './served-program.mjs'
 import {officialStarts} from '../src/data/officialMarkets.js'
@@ -23,12 +24,12 @@ export function captureSimulation({date=localDay(),now=new Date().toISOString()}
   }
  }
  const tickets=selectSimulationTickets(groups,allowance.daily);if(!tickets.length)return {status:'waiting_eligible_games'}
- const day={date,week:allowance.week,capturedAt:now,dailyAllowance:allowance.daily,spent:Math.round(tickets.reduce((n,t)=>n+t.cost,0)*100)/100,tickets,eligibleGames:groups.length,objective:'Maximize sum of model hit chances for two distinct official games under daily budget',calibrated:false}
+ const day={date,week:allowance.week,capturedAt:now,dailyAllowance:allowance.daily,spent:Math.round(tickets.reduce((n,t)=>n+t.cost,0)*100)/100,tickets,eligibleGames:groups.length,objective:'Maximize model coverage of at least one hit with shared-race intersections under daily budget',selectionVersion:2,pairModelCoverage:tickets.length===2?pairModelCoverage(...tickets):null,calibrated:false}
  return {status:reserveSimulationDay(day)?'recorded':'already_recorded',date,tickets:tickets.length,spent:day.spent}
 }
 export function simulationReport(){
  const days=simulationDays(),date=localDay(),allowance=simulationAllowance(date,days),settled=new Map(applicationTickets(days.at(-1)?.date||date).filter(t=>t.source==='simulation').map(t=>[`${t.date}:${t.city}:${t.ordinal}:${t.algorithm}`,t]))
  const history=days.map(day=>({...day,tickets:day.tickets.map(t=>{const saved=settled.get(`${t.date}:${t.city}:${t.ordinal}:${t.algorithm}`)||t,official=saved.officialResult?.winningLegs,status=!official?'pending':saved.officialResult.winningCombinations>0?'won':'lost';return {...saved,status,payout:status==='lost'?0:status==='won'?saved.verifiedPayout??null:null}})}))
  const all=history.flatMap(d=>d.tickets),week=history.filter(d=>d.week===allowance.week).flatMap(d=>d.tickets),returns=week.reduce((n,t)=>n+(t.payout||0),0)
- return {date,weeklyBudget:1000,week:allowance.week,spent:1000-allowance.remaining,remaining:allowance.remaining,returns,balance:allowance.remaining+returns,missingPayouts:week.filter(t=>t.status==='won'&&t.payout===null).length,won:all.filter(t=>t.status==='won').length,settled:all.filter(t=>t.status!=='pending').length,days:history,note:'Sanal oyundur. Haftalık harcama sınırı 1.000 TL; kazançlar yeniden harcanmaz. İki farklı oyunun toplam model tutma beklentisi günlük bütçeyle eniyilenir. Yüzdeler kalibre edilmiş başarı oranı değildir. Sonuçlar yalnız resmî altılı sonucu ve ikramiyesiyle kesinleşir; geçmişe kupon üretilmez.'}
+ return {date,weeklyBudget:1000,week:allowance.week,spent:1000-allowance.remaining,remaining:allowance.remaining,returns,balance:allowance.remaining+returns,missingPayouts:week.filter(t=>t.status==='won'&&t.payout===null).length,won:all.filter(t=>t.status==='won').length,settled:all.filter(t=>t.status!=='pending').length,days:history,note:'Sanal oyundur. Haftalık harcama sınırı 1.000 TL; kazançlar yeniden harcanmaz. Yeni seçimlerde iki kupondan en az birinin tutma kapsamı, ortak ayak kesişimleriyle günlük bütçe altında eniyilenir. İlk günün eski seçimleri değiştirilmez. Yüzdeler kalibre edilmiş başarı oranı değildir. Sonuçlar yalnız resmî altılı sonucu ve ikramiyesiyle kesinleşir; geçmişe kupon üretilmez.'}
 }
