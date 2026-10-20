@@ -60,6 +60,7 @@ try{
   }
   await run(process.execPath,[exporter],{ARCHIVE_THROUGH_DATE:through,PERFORMANCE_FEATURES:'1',PEDIGREE_FEATURES:'1',INTELLIGENCE_FEATURES:'1',IDENTITY_VERSION:'1',PACE_FEATURES:'1',TRAIN_COUNTRIES:country,TRAINING_OUTPUT:`${output}/${country}-training.json`,FOREIGN_MODEL_DIR:output,EXTERNAL_CHARTS_PATH:`${root}/charts.json`})
  }
+ state.step='auditing_training_contract';await save();await run(process.execPath,['server/audit-training-contract.mjs',root,countries])
  const artifacts=countries.split(',').includes('TR')?`${countries},TR-arabian,TR-thoroughbred`:countries
  state.phase='training';state.step='training_and_evaluation';delete state.country;await save();await run(config.python,['server/train-intelligence.py',root,artifacts])
  state.phase='verifying';await save();await run(process.execPath,['server/verify-intelligence.mjs',root])
