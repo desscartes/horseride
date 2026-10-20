@@ -1,3 +1,4 @@
+import {maintenanceArchiveSummary as summarizeMaintenanceArchive} from './maintenance-archive-summary.mjs'
 import { createHash } from 'node:crypto'
 import {ensureForecastModelIdentity} from './forecast-model-identity.mjs'
 import { mkdirSync } from 'node:fs'
@@ -616,3 +617,5 @@ export function reserveSimulationDay(day){
 }
 
 export function updateApplicationTicketResultSource(id,url){const row=database.prepare('SELECT payload_json FROM application_tickets WHERE id=?').get(id);if(row){const t=JSON.parse(row.payload_json);if(!t.resultCsvUrl)database.prepare('UPDATE application_tickets SET payload_json=? WHERE id=?').run(JSON.stringify({...t,resultCsvUrl:url}),id)}}
+
+export function historicalMaintenanceSummary(country,through,trainedThrough){return summarizeMaintenanceArchive(database,country,through,trainedThrough)}

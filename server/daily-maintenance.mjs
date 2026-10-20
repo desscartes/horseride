@@ -51,9 +51,8 @@ try {
   await persist()
   process.env.HORSERIDE_NO_LISTEN = '1'
   const { collectHistoricalDay } = await import('./index.mjs')
-  const { listHistoricalRaces } = await import('./database.mjs')
-  let archive = listHistoricalRaces()
-  const dates = collectionDates(today, archive.map(r => r.date).sort().at(-1))
+  const { historicalRaceDates,historicalMaintenanceSummary } = await import('./database.mjs')
+  const dates = collectionDates(today, historicalRaceDates().at(-1))
   for (const date of dates) for (const foreignOnly of [false, true]) {
     try {
       const report = await collectHistoricalDay(date, { foreignOnly })
@@ -104,11 +103,11 @@ try {
   for (const country of ['TR','US']) {
     try {
       const incumbent = await active(country)
-      const currentArchive = listHistoricalRaces().filter(r => r.date <= through && (country === 'TR' ? !r.foreign : r.foreign && r.city.endsWith('ABD')))
-      if (!currentArchive.some(r => r.date > incumbent.trainedThrough)) { state.models.push({ country, status: 'no_new_completed_races' }); continue }
+      const currentArchive = historicalMaintenanceSummary(country,through,incumbent.trainedThrough)
+      if (!currentArchive.newerRaces) { state.models.push({ country, status: 'no_new_completed_races' }); continue }
       try {
         const latest = await json((await json(`data/daily-models/latest-${country}.json`)).reportPath)
-        if (latest.dailyTraining?.day === today && latest.dailyTraining?.archiveRaces === currentArchive.length) {
+        if (latest.dailyTraining?.day === today && latest.dailyTraining?.archiveRaces === currentArchive.races) {
           state.models.push({ country, status: 'already_trained_today', trainedThrough: latest.trainedThrough }); continue
         }
       } catch {}
@@ -127,7 +126,7 @@ try {
       await run(python, ['server/train-daily-ranking.py', country, output, incumbentPath], {}, 45*60_000)
       const reportPath = `${output}/report.json`
       const report = await json(reportPath)
-      report.dailyTraining = { ...report.dailyTraining, day: today, archiveRaces: currentArchive.length }
+      report.dailyTraining = { ...report.dailyTraining, day: today, archiveRaces: currentArchive.races }
       report.externalChartsPath = incumbent.externalChartsPath
       report.trainingDataPath = trainingPath
       report.dailyModelPath = `${output}/live.json`
