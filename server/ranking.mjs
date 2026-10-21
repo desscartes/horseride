@@ -179,7 +179,7 @@ export function localRankingFeatureVectors(race,date,history,bundle){
   return {race,country,features,advanced,vectors}
 }
 
-export function rankRaceLocally(race,date,history,bundle){
+export function rankRaceLocally(race,date,history,bundle,{onPrediction}={}){
   if(!bundle&&racingCountry(race.city)==='AU')return {...race,rankingSource:'program_baseline',rankingCountry:'AU',rankingEvidence:{trainedModelAvailable:false,calibratedWinProbability:false,reason:'Avustralya için doğrulanmış etkin model yok; program puanlaması kullanılıyor.'}}
   if(!bundle||bundle.metadata.trainedThrough>=date)return race
   if(bundle.metadata.breed&&bundle.metadata.breed!==(/ARAP/i.test(race.conditions||'')?'arabian':'thoroughbred'))return race
@@ -190,5 +190,7 @@ export function rankRaceLocally(race,date,history,bundle){
   const scores=vectors.map(values=>evaluateTreeModel(bundle.model,bundle.metadata.featureIndexes?bundle.metadata.featureIndexes.map(i=>values[i]):values)/bundle.metadata.temperature)
   const maximum=Math.max(...scores),exp=scores.map(v=>Math.exp(v-maximum)),total=exp.reduce((a,b)=>a+b,0)
   const extended=bundle.metadata.inputs?.includes('workouts')&&bundle.metadata.inputs?.includes('official_weather')
-  return {...race,rankingSource:'local_trained_model',rankingCountry:country||'TR',rankingMethod:bundle.metadata.method,rankingEvidence:country?{country,workoutsUsed:false,weatherUsed:false,speedClassUsed:Boolean(advanced),speedEvidenceRunners:advanced?.filter(f=>f[0]>0).length||0,workoutRunners:features.filter(f=>!f[featureNames.indexOf('missingWorkout')]).length,externalChartRunners:vectors.filter(f=>f[featureNames.length]>0).length,runners:race.horses.length}:extended?{workoutsUsed:true,weatherUsed:true,weatherAvailable:!raceEnvironment(race,date).missing,workoutRunners:features.filter(f=>!f[featureNames.indexOf('missingWorkout')]).length,runners:race.horses.length}:null,horses:race.horses.map((horse,i)=>({...horse,baselineProbability:horse.probability,probability:Number((100*exp[i]/total).toFixed(2)),rankingScore:scores[i]})).sort((a,b)=>b.rankingScore-a.rankingScore)}
+  const prediction= {...race,rankingSource:'local_trained_model',rankingCountry:country||'TR',rankingMethod:bundle.metadata.method,rankingEvidence:country?{country,workoutsUsed:false,weatherUsed:false,speedClassUsed:Boolean(advanced),speedEvidenceRunners:advanced?.filter(f=>f[0]>0).length||0,workoutRunners:features.filter(f=>!f[featureNames.indexOf('missingWorkout')]).length,externalChartRunners:vectors.filter(f=>f[featureNames.length]>0).length,runners:race.horses.length}:extended?{workoutsUsed:true,weatherUsed:true,weatherAvailable:!raceEnvironment(race,date).missing,workoutRunners:features.filter(f=>!f[featureNames.indexOf('missingWorkout')]).length,runners:race.horses.length}:null,horses:race.horses.map((horse,i)=>({...horse,baselineProbability:horse.probability,probability:Number((100*exp[i]/total).toFixed(2)),rankingScore:scores[i]})).sort((a,b)=>b.rankingScore-a.rankingScore)}
+  onPrediction?.({race,date,bundle,vectors,prediction})
+  return prediction
 }

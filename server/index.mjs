@@ -1,3 +1,4 @@
+import {recordRankingInputs} from './ranking-input-journal.mjs'
 import {streamingRankingHistories} from './streaming-ranking-history.mjs'
 import {parseRacePrizes,restoreProgramPrizes} from './race-prizes.mjs'
 import {parseMaternalColumn} from './program-maternal-lines.mjs'
@@ -154,7 +155,7 @@ function locallyRankRaces(races,date){
     if(horse.workouts)return horse
     const tables=findHorseProfileTables(horse.horseId||horse.sourceData?.tjk?.horseId,'tjk_horse_workouts')
     return tables?{...horse,workouts:summarizeWorkoutHistory(tables,horse.name,date)}:horse
-  })},date,localHistoryCache.histories.get(historyKey(racingCountry(race.city)||'TR',bundles.get(racingCountry(race.city)||'TR')))||createRankingHistory({identityVersion:bundles.get(racingCountry(race.city)||'TR')?.metadata.identityVersion||1}),bundles.get(racingCountry(race.city)||'TR')))
+  })},date,localHistoryCache.histories.get(historyKey(racingCountry(race.city)||'TR',bundles.get(racingCountry(race.city)||'TR')))||createRankingHistory({identityVersion:bundles.get(racingCountry(race.city)||'TR')?.metadata.identityVersion||1}),bundles.get(racingCountry(race.city)||'TR'),{onPrediction:input=>{try{recordRankingInputs(input)}catch(e){analysisLog('ranking_input_capture_failed',{error:e.message})}}}))
   for(const race of ranked){
     const vectors=performanceFeatures(race,date,(localHistoryCache.histories.get(historyKey(racingCountry(race.city)||'TR',bundles.get(racingCountry(race.city)||'TR')))||createRankingHistory()).performance)
     race.horses=race.horses.map((horse,i)=>({...horse,performanceEvidence:{...Object.fromEntries(performanceFeatureNames.map((name,j)=>[name,Number(vectors[i][j].toFixed(4))])),note:'Yalnız önceki yarışlar; aynı ülke/pist/yüzey/ırk/mesafe referansı. Eksik derece puana çevrilmez; bu resmi ticari hız figürü değildir.'}}))

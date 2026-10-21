@@ -60,3 +60,10 @@ test('market changes leave final locally ranked scores and model probabilities u
  const selected=r=>r.horses.map(h=>({no:h.no,score:h.rankingScore,probability:h.probability}))
  assert.deepEqual(selected(rankRaceLocally(input(false),'2026-10-07',history,bundle)),selected(rankRaceLocally(input(true),'2026-10-07',history,bundle)))
 })
+
+test('input observer receives exact vectors without changing ranking',()=>{
+ const history=createRankingHistory(),bundle={metadata:{method:'observer-test',trainedThrough:'2026-10-01',temperature:1},model:{features_info:{float_features:[]},oblivious_trees:[],scale_and_bias:[1,[0]]}}
+ const plain=rankRaceLocally(race,'2026-10-02',history,bundle);let observed
+ const audited=rankRaceLocally(race,'2026-10-02',history,bundle,{onPrediction:value=>{observed=value}})
+ assert.deepEqual(audited,plain);assert.deepEqual(observed.vectors,raceFeatures(race,'2026-10-02',history));assert.equal(observed.prediction,audited)
+})
