@@ -590,3 +590,9 @@ Son doğrulama:
 - Servis analiz/güncelleme yükündeyken sağlık kontrolü yanıtlamadı; supervisor API'yi yenidenbaşlattı. Yeni18308 15:17:52Z dinlemeye başladı; HTTPhealth/replaykontrolü ayrıca yürütüldü. Tekrarrestartmarker kaldırıldı; currentkod yükleniyor.
 - Yeniprogramhistorycache446,037,509bytes,280.5snrebuild; program453.6sn. Bu gerçekperformansdarboğazı kaydedildi, hızkazancı iddiası yok. Program yenilemechild23376profiletamamlama sürerse ikinciiş açma(session84859).
 - EğitimTR12438race731dayexport tamam,USexport420daya ilerledi(session45388); henüz trainingcomplete veya başarıartışı yok. Sonraki adım training-state/report ve bu31recordun sürekli büyüyenreplay doğrulaması.
+
+## 21 Ekim — yabancı program erişimi onarıldı
+- Kullanıcının veri gelmiyor bildirimi gerçekti: API sağlık yanıtı kesildi,8793gateway502, dışURLHTML502; program dosyasında78race mevcuttu. Supervisor21388APIrestartsonrasıhealth200.
+- program-fallback.mjs/public-gateway.mjs: sadece /api/races upstreamhata/5xxdurumunda aynıistenentarihin son yayımlanmışprogramı, seçilencityfilterile sunulur; cachedProgram/stale veTürkçeaçıklama. Yanlıştarih/olmayanşehir/özelalanlar sunulmaz. AnaAPIhealth sahtehealthy yapılmaz, yazma/paid/management yetkileri genişlemez.
+-4gatewaytestpassed: accessallowlist,historyfilters,offlineforeigncityexactcache,wrongdatefailclosed. 8793gateway15468yenidenbaşlatıldı;cloudflared3740veaynıdışURLkorundu.
+- DışHTTPSdoğrulamaHTTP200: Tümü78race797ms,Keeneland8race240ms,Horseshoe8race235ms. Kaynakyokdeğil,geçiciAPIkesintisiydi; gerçekveri tamlığı ayrımodelişi olarak sürüyor.

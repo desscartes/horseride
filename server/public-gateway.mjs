@@ -1,3 +1,4 @@
+import {fallbackProgram} from './program-fallback.mjs'
 import {createServer} from 'node:http'
 import {readFile,stat} from 'node:fs/promises'
 import {resolve,extname,sep} from 'node:path'
@@ -7,7 +8,7 @@ import {jsonTransfer} from './json-transfer.mjs'
 
 const defaultRoot=fileURLToPath(new URL('../dist/',import.meta.url))
 const publicReads=new Set(['/api/simulation','/api/races','/api/meetings','/api/analysis/daily','/api/commentary','/api/social-coupons','/api/history/horse','/api/history/races','/api/performance','/api/application-report','/api/daily-ticket','/api/coupon-showcase','/api/analysis/usage'])
-export function createPublicGateway({upstream='http://127.0.0.1:8788',root=defaultRoot,fetcher=fetch}={}){
+export function createPublicGateway({upstream='http://127.0.0.1:8788',root=defaultRoot,fetcher=fetch,programReader=async date=>JSON.parse(await readFile(fileURLToPath(new URL(`../data/program-cache/${date}.json`,import.meta.url)),'utf8'))}={}){
  const directory=resolve(root)
  const recordings=new Map()
  return createServer(async(req,res)=>{
@@ -73,8 +74,15 @@ export function createPublicGateway({upstream='http://127.0.0.1:8788',root=defau
     const target=new URL(url.pathname,upstream)
     target.search=new URLSearchParams({date,city}).toString()
     // Never forward a public POST: expensive analysis/training stays server-managed.
-    const response=await fetcher(target,{method:'GET',signal:AbortSignal.timeout(15000)})
-    const payload=await response.json()
+    let response,payload
+    try{
+     response=await fetcher(target,{method:'GET',signal:AbortSignal.timeout(url.pathname==='/api/races'?5000:15000)})
+     if(url.pathname==='/api/races'&&response.status>=500)throw Error('Upstream unavailable')
+     payload=await response.json()
+    }catch(error){
+     if(url.pathname==='/api/races'){try{const cached=fallbackProgram(await programReader(date),date,city);if(cached)return reply(200,cached)}catch{}}
+     throw error
+    }
     if(req.method==='POST'&&payload.job?.status==='running')return reply(202,{job:payload.job})
     if(req.method==='POST'&&!payload.analysis)return reply(503,{error:'Analiz sunucuda hazırlanıyor; hazır olduğunda otomatik gösterilecek.'})
     return reply(response.status,payload)
