@@ -583,3 +583,10 @@ Son doğrulama:
 - Sabah işine runner_gaps aşaması eklendi: örnek5at yerine her gün tüm aktif atların tek tek eksik envanteri otomatik yazılır.
 - Yeni TR/US frozen aday eğitimi data/intelligence-models/2026-10-21/pedigree-completion-v1 (session45388),kilit intelligence-training.lock,through20Ekim;15,284ikramiyekaydı ve günceldoğrulanmışsoy snapshot. Henüz exportingTR; bitiş/üstünlük iddiası yok. Aktifmodel değiştirilmedi.
 - Güncelresmisonuçkontrolü Bursa0/6top1,3/6top3;İstanbul9koşu3/9top1,5/9top3,1pending. İlk3güncelolmayanrapor bu sayımla güncellendi. Eski forecastledger korunur.
+
+## 21 Ekim — canlı kayıt doğrulandı
+- Gerçek program yenilemesi 78race15:15:07Z yayımlandı;31future-race input kaydı/2modelde exactprobability replayfark0 verified. İlkçalışançocuk modelarchiveeklenmedenimportettiği için iki modelkopyası yalnız mevcut aktif modelin öncedenkayıtlı SHA256birebireşleşmesiyle tamamlandı; capture/vektörler değiştirilmedi. Bootstrap raporu ayrı tutulur.
+- Modelkopyası aynıprocess'te yalnız bir kez serialize/write edilir; tekrarlananher yarışın maliyeti azaltıldı. Değişiklik sonrası2journaltestpassed, önceki9ranking/journalpassed.
+- Servis analiz/güncelleme yükündeyken sağlık kontrolü yanıtlamadı; supervisor API'yi yenidenbaşlattı. Yeni18308 15:17:52Z dinlemeye başladı; HTTPhealth/replaykontrolü ayrıca yürütüldü. Tekrarrestartmarker kaldırıldı; currentkod yükleniyor.
+- Yeniprogramhistorycache446,037,509bytes,280.5snrebuild; program453.6sn. Bu gerçekperformansdarboğazı kaydedildi, hızkazancı iddiası yok. Program yenilemechild23376profiletamamlama sürerse ikinciiş açma(session84859).
+- EğitimTR12438race731dayexport tamam,USexport420daya ilerledi(session45388); henüz trainingcomplete veya başarıartışı yok. Sonraki adım training-state/report ve bu31recordun sürekli büyüyenreplay doğrulaması.
