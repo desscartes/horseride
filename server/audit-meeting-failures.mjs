@@ -1,0 +1,11 @@
+import {DatabaseSync} from 'node:sqlite'
+import {writeFileSync} from 'node:fs'
+import {prospectiveOutcome} from './prospective-outcomes.mjs'
+const date=process.argv[2]||'2026-10-21',db=new DatabaseSync('data/horseride.sqlite',{readOnly:true}),rows=[]
+for(const city of ['Bursa','İstanbul']){
+ const results=new Map(db.prepare('SELECT race_no,race_json,results_json FROM historical_race_data WHERE date=? AND city=?').all(date,city).map(r=>[r.race_no,prospectiveOutcome(JSON.parse(r.race_json),new Map(JSON.parse(r.results_json)))]))
+ const snapshots=db.prepare("SELECT * FROM (SELECT *,ROW_NUMBER() OVER(PARTITION BY race_no ORDER BY captured_at DESC,id DESC) AS rn FROM forecast_snapshots WHERE date=? AND city=? AND source='numeric' AND captured_at<scheduled_start) WHERE rn=1 ORDER BY race_no").all(date,city)
+ for(const s of snapshots){const picks=JSON.parse(s.picks_json).sort((a,b)=>b.probability-a.probability),result=results.get(s.race_no),winners=result?[...result].filter(([,p])=>p===1).map(([name])=>name):[];const full=!!result&&result.size===picks.length&&picks.every(h=>result.has(h.horseName));rows.push({city,raceNo:s.race_no,capturedAt:s.captured_at,model:s.model_version,field:picks.length,status:!result?'pending':!full?'field_mismatch':'settled',top:picks.slice(0,3),winners:winners.map(name=>({name,rank:picks.findIndex(h=>h.horseName===name)+1,probability:picks.find(h=>h.horseName===name)?.probability})),topOne:full?winners.includes(picks[0]?.horseName):null,topThree:full?picks.slice(0,3).some(h=>winners.includes(h.horseName)):null})}
+}
+const summary=Object.fromEntries(['Bursa','İstanbul'].map(c=>{const r=rows.filter(r=>r.city===c&&r.status==='settled');return[c,{settled:r.length,topOne:r.filter(r=>r.topOne).length,topThree:r.filter(r=>r.topThree).length,pending:rows.filter(r=>r.city===c&&r.status==='pending').length}]}))
+const report={date,checkedAt:new Date().toISOString(),scope:'Last numeric capture before official scheduled start; exact full-field result match. No reconstructed forecasts. Pending races excluded. Descriptive only, not causal attribution.',summary,rows};writeFileSync(`data/maintenance/meeting-failure-review-${date}.json`,JSON.stringify(report,null,2));console.log(JSON.stringify(report));db.close()

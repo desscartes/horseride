@@ -568,3 +568,9 @@ Son doğrulama:
 - collect-tjk-pedigree.mjs PEDIGREE_CURRENT_ONLY=1 seçeneğiyle arşiv hedeflerini eklemeden bugünkü atlara odaklanabilir; varsayılan eski davranış korunur. Mevcut retry süreleri değiştirilmedi. Bir kaynak zaman aşımı var; veri üretilmedi.
 - CANOPUS116064 veKUKLACI KIZ112295 resmi profilleri HTTP200/ad eşleşmesiyle kaydedildi. Dinamik/boş tablo tek başına debut kanıtı sayılmadı; verifiedDebut false tutuldu. İnceleme data/maintenance/profile-review-2026-10-21/report.json.
 - Kaynak doğrulaması eksik veya retry bekleyen son12TR kaydı açık tutuluyor; bugünkü tarihli current-runner-gaps dosyası ayrıntıları içerir. Sıradaki büyük açık US kariyer/bireysel derece/idman; ücretsiz chart arşivi sonbakımda yenilendiği için aynı404 isteği tekrarlanmadı.
+
+## 21 Ekim — Bursa/İstanbul başarısızlık incelemesi
+- Kullanıcının kötü sonuç bildirimi üzerine bugünkü resmiTRsonuçları yenilendi: Bursa6/6tam,İstanbul3/10tam (7henüzsonuçyok). Tam eşleşmeyen/sonuçsuz yarışlar kayıp sayılmadı.
+- audit-meeting-failures.mjs yalnız yarışbaşlamadan numeric ledger soncapture ve tamfieldresmioutcome kullanır. Bursa top1 0/6,top3 3/6;İstanbul ilk3top1 1/3,top3 2/3. Yenidenüretilmiş tahmin yok. Rapor meeting-failure-review-2026-10-21.json.
+- Büyükhatalar: Bursa1MICKEY MO9.sıra%1.61,Bursa5DRAGON BORA5.sıra%7.71,Bursa6ÖNCÜER16.sıra%1.79;İstanbul3AZAPKAPI6.sıra%6.35. Bursa2/3/4kazanan2.sırada. İlktercihbaşarısızlığı ve kuponkapsamı ayrıdeğerlendirilmeli.
+- Bu tek günkü sonuçlara göre ağırlık/temperature/seçim eşiği fit edilmedi. Kazananvefavori için yalnız orijinalprestartkanıtlarını çıkaran saltokunur iş başladı(session7253); sonuç meeting-failure-evidence-2026-10-21.json. Veri yokluğunu kötü at ile özdeşleştirme ve ıslakpist/mesafe/sınıf kapsamı sonraki incelemede ayrıştırılmalı; henüz nedensellik kanıtı yok.
