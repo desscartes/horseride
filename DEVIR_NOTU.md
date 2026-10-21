@@ -537,3 +537,23 @@ Son doğrulama:
 - Daily/pedigree/modelpublisher gerçekmodelSHA hesaplar; train-daily ve train-pedigree yeni adaydan mirasprospectiveEvidence/verifiedArtifactSHA/fullRuntimeFeatureParity alanlarını temizler, reused_holdout_requires_prospective rolü verir. Eskiactivate-performance-us komutu da ortak gate olmadan aktifleştiremez. Eskiaktifpointerler değişmedi.
 - İki tarih/terfi testi geçti; zayıfsample/negatifCI/leak/Brier/top3 yanında eksikfeatureparity/yanlışrole/yanlışmethod/yanlışSHA reddi kapsanır. Python syntax ve Nodepublisher/maintenance syntaxpassed. Yeni proofmetadata üretme veya bağımsızsonuç yerinegeçirme yok; gerçekledgerdenartifactbağlıterfikanıtı ayrıca gereklidir.
 - Pedigree tamamlandı: aday252race15gün29.76 vsincumbent32.54,delta-2.78; candidatecutoffSep19/incumbentOct4 farklı. Bu yüzden veri özelliklerinin izole etkisi diye sunulmaz; geriyeablation1004race27.09/27.59 deiyileşmedi. eligiblefalse,runtimeParity0. Bakımtraining_overseas_data fazında; context11956bekliyor.
+
+## 21 Ekim 09.00 — sabah hazırlığı ve kontrollü deney sonucu
+- Sabah runner 06:06:06Z başladı; public_access geçti, gece tamamlanan 21 Ekim bakımı yeniden çalıştırılmadı. initial_program devam ediyor; session57329. Kopya bakım/eğitim açılmadı.
+- Gece bakım partial: 18/20 Ekim yabancı sonuçlar eksik, maternal pedigree kısmi, tarihsel enrichment zaman aşımı. Bu alanlar tamamlandı sayılmaz; günlük raporda açıkça taşınıyor.
+- US prior-race-context kontrollü eski validation 708 yarış: control top1 %27.6836, context %28.3898 (+0.7062puan); Brier .807251→.806772, logLoss1.823792→1.823698. Yeniden kullanılan doğrulama, bağımsız ileri dönem kanıtı değil. Test dönemi skorlanmadı, aktif model değiştirilmedi.
+- verify-context-validation her iki varyantta Python/Node maxDifference0 (7 runner reference). Bu yalnız skor eşitliği; tam serving feature raporu ayrıca mevcut, tek başına terfi hakkı sağlamaz. Sabah sonu rapor/coverage/eğitim sonucu sonraki kontrolde okunmalı.
+
+## 21 Ekim — ücretsiz kaynak tercihi ve sabah tamamlanması
+- Kullanıcı mevcut lisanslı ABD arşivi olmadığını, ücretsiz kaynaklarla sürdürülmesini belirtti. Kalıcı veri politikası reliability-program.json içine kaydedildi; ücretli kaynak satın alma veya korumalı erişimi aşma yetkisi yok.
+- Sabah hazırlığı 06:46:11Z (09:46TR) tamamlandı: 10 toplantı, 78 koşunun yorumları hazır; program, kapsam denetimi, simülasyon, kalite denetimleri ve aday eğitimi tamamlandı. Bu işlem tamamlanmasıdır, verilerin eksiksiz olması değil (dataComplete=false).
+- TR235atta history3/workout7/ownTimedRun3 eksik; US217atta history59/workout63/ownTimedRun174 eksik. Anne-babası ve pist alanları da eksik. Yarışa henüz çıkmamış atın gerçek kariyer eksikliği ile kaynakta bulunamayan kariyer ayrımı korunmalı.
+- Gece bakımının kısmi sonuç/soy/zaman aşımı hataları sabah raporunda maintenanceReused.errors altında korunur. Aktif modele doğrulanmamış başarı artışı atfedilmez.
+
+## 21 Ekim — bugünkü yarışlara odaklanma ve düşük başarı ayrıştırması
+- Kullanıcı bugünkü programı ve model başarısını önceliklendirdi. Program 07:55:32Z yeniden yayımlandı; ardından yalnız mevcut eksik TR idmanları ve aynı tarih resmi maternal CSV eşleşmeleri tekrar kontrol edildi. Geçmiş tahminler değiştirilmedi.
+- İdman yeniden kontrolü 4atta1 doğrulanmış kayıt buldu. DRAGON BORA, GÜROBASI ve MAGGIE için at/tarih ile doğrulanmış kayıt yok; boşluklar uydurulmadı. CSV maternal ZA72/72,GB17/55 eşleşti; rejected0. Kaynakta maternal alan açık değilse eşleşme üretilmedi.
+- probability-quality denetimine sabit at sayısı (2-7,8-11,12+) ve ilk tercih olasılığı (<30,30-50,50+) grupları eklendi. Bu betimsel teşhis, eşik seçimi/kalibrasyon veya model değişikliği değil. 4test geçti.
+- 531sonuçlu/14gün ilktercih%30.70;441paired model%31.75 vsAGF%36.05. Altılı284sonuçlu9kazanç=%3.17; ortak ayaklı bağımlı kuponlar, bağımsız başarı kanıtı değil.
+- <30güven343yarış yaklaşık%24ilktercih;50+yalnız19yarış yaklaşık%63. Azörnekten yeni güven eşiği seçilmedi. 2-7atlı paired modelyaklaşık%36 vsAGF%45; sorun yalnız kalabalıkfield değil.
+- Sabah yeniTRadayı269race%27.51 vsincumbent%31.97;US384race%29.69 vs%29.95. Üstünlük yok, aktifmodel değişmedi. Öncelik gerçek kariyer/bireysel derece/idman boşlukları ve eğitim-canlı kapsam farkı; AGFkarşılaştırması korunmalı, yeni candidate yalnız ileri dönem kayıtlarıyla değerlendirilmeli.
