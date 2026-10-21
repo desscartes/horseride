@@ -23,7 +23,7 @@ if(trainingPriority){
  for(const target of selected)horses.set(target.id,target.horse)
 }else{
  for(const r of readServedProgram(today)?.races||[])add(r)
- for(const date of historicalRaceDates().reverse()){if(horses.size>=limit*3)break;for(const r of iterateHistoricalDay(date))add(r)}
+ if(process.env.PEDIGREE_CURRENT_ONLY!=='1')for(const date of historicalRaceDates().reverse()){if(horses.size>=limit*3)break;for(const r of iterateHistoricalDay(date))add(r)}
 }
 const report={startedAt:new Date().toISOString(),countries:[...selectedCountries],priority:trainingPriority?'training_frequency':'current_program',...(trainingPriority?{through,targetArchiveStarts:selected.reduce((n,t)=>n+t.observedStarts,0),targets:selected.map(t=>({horseId:t.id,observedStarts:t.observedStarts}))}:{}),pendingObserved:horses.size,attempted:0,saved:0,failures:[]};let next=0;const tasks=[...horses.values()].filter(h=>Date.parse(retries[h.horseId||h.sourceData?.tjk?.horseId]?.after||'')<=Date.now()||!retries[h.horseId||h.sourceData?.tjk?.horseId]).slice(0,limit)
 const deadline=Date.now()+4*60_000

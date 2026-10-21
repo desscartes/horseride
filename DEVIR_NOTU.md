@@ -562,3 +562,9 @@ Son doğrulama:
 - IYILESTIRME_KABUL_LISTESI.md sırayla veri/model/kupon kabul işlerini tanımlar. İlk madde tamam: audit-current-runner-gaps.mjs bugünkü tüm aktif atları tek tek raporlar; model veya tahmin yazmaz. Kaynak bulunamaması debut değildir.
 - İlk envanter751aktif at: TR231(history2,idman3,bireysel2,damsire125);US217(history59,idman63,bireysel174,damsire191). Çekilenlerle anlık sayılar değişebilir. Diğer ülkeler de aynı dosyada.
 - Sonraki adım resmi TJK pedigree80batch TR/US başlatıldı (session67661), kaynak cooldownlarına uyulur. Yeni tamamlama sayısı bitiş raporundan okunmalı; başlaması veri kazanımı sayılmaz.
+
+## 21 Ekim — bugünkü soy açıklarının somut kapanması
+- Önceki80batch71 ve current-only43attempt42 resmi soy kaydı doğrulandı. Son tam751runneraudit TR231aktif atta damsire açığı120→12;219atta mevcut. ABD217atta191açık sürüyor. Kaynakta doğrulanan soy sayısı model kazanma başarısı değildir.
+- collect-tjk-pedigree.mjs PEDIGREE_CURRENT_ONLY=1 seçeneğiyle arşiv hedeflerini eklemeden bugünkü atlara odaklanabilir; varsayılan eski davranış korunur. Mevcut retry süreleri değiştirilmedi. Bir kaynak zaman aşımı var; veri üretilmedi.
+- CANOPUS116064 veKUKLACI KIZ112295 resmi profilleri HTTP200/ad eşleşmesiyle kaydedildi. Dinamik/boş tablo tek başına debut kanıtı sayılmadı; verifiedDebut false tutuldu. İnceleme data/maintenance/profile-review-2026-10-21/report.json.
+- Kaynak doğrulaması eksik veya retry bekleyen son12TR kaydı açık tutuluyor; bugünkü tarihli current-runner-gaps dosyası ayrıntıları içerir. Sıradaki büyük açık US kariyer/bireysel derece/idman; ücretsiz chart arşivi sonbakımda yenilendiği için aynı404 isteği tekrarlanmadı.
