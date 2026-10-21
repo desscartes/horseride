@@ -1,3 +1,4 @@
+import {acquireCollectionGate} from './collection-gate.mjs'
 import './runtime-env.mjs'
 import {remoteDeployment} from './deployment-role.mjs'
 import {mkdir,readFile,writeFile,unlink} from 'node:fs/promises'
@@ -7,6 +8,7 @@ import {mergeOfficialCharts} from './overseas-chart-input.mjs'
 import {localDay,shiftDay} from './maintenance-policy.mjs'
 import {trainingArchiveDates,trainingArchiveDay} from './training-archive.mjs'
 if(remoteDeployment())throw Error('Training belongs to the home server')
+await acquireCollectionGate()
 const root=process.argv[2],countries=[...new Set((process.env.INTELLIGENCE_COUNTRIES||'TR,US,GB,FR,ZA,AU').split(',').map(c=>c.trim()))].join(','),through=shiftDay(localDay(),-1)
 if(countries.split(',').some(c=>!['TR','US','GB','FR','ZA','AU'].includes(c)))throw Error('Unsupported intelligence training country')
 if(!root?.startsWith('data/intelligence-models/'))throw Error('Use versioned intelligence output directory')

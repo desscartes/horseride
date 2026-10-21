@@ -596,3 +596,11 @@ Son doğrulama:
 - program-fallback.mjs/public-gateway.mjs: sadece /api/races upstreamhata/5xxdurumunda aynıistenentarihin son yayımlanmışprogramı, seçilencityfilterile sunulur; cachedProgram/stale veTürkçeaçıklama. Yanlıştarih/olmayanşehir/özelalanlar sunulmaz. AnaAPIhealth sahtehealthy yapılmaz, yazma/paid/management yetkileri genişlemez.
 -4gatewaytestpassed: accessallowlist,historyfilters,offlineforeigncityexactcache,wrongdatefailclosed. 8793gateway15468yenidenbaşlatıldı;cloudflared3740veaynıdışURLkorundu.
 - DışHTTPSdoğrulamaHTTP200: Tümü78race797ms,Keeneland8race240ms,Horseshoe8race235ms. Kaynakyokdeğil,geçiciAPIkesintisiydi; gerçekveri tamlığı ayrımodelişi olarak sürüyor.
+
+## 21 Ekim — gün içine yayılan kalıcı toplama ve yeni veri deneyi
+- Windows HorseRide-Intraday-Collection15dkjobkontrolü kuruldu. İlkprogram23işi23:45→23:48exit0tamam, NextRun23:59. Plan/source/kurulum VERI_IS_PLANI.md ve install-intraday-collection.ps1; tümprogramülkeleri,TR/UScurrentsoy,TRidman,USidman,allrunnersaudit dağıtıldı. Kaynakkısıtları sürer.
+- İlk kilit tasarımı auto-review tarafından karşılıklıbekleme riskiyle2kezreddedildi; görevgeçicidurduruldu. Saltokunurinceleme+explicitassert ile tüm4girişte ortakgatekendi lock'tanÖNCE alınacak şekilde düzeltildi. Çocukprocessownerdevralır;blockedrootkendi locktutmaz. 3gate+2scheduler+2loadtestpassed. Sonrasında görev etkinleştirildi; gerçekjobexit0.
+- Bekleyen işleri otomatikverihata, maksimum2deneme/30dkara/60dkeskislotatlama, günlükjobstateveayrılog ileizler. Görev düşük öncelikli/gizli/currentWindowsoturumunda. Eğitim için duplicatejobyok.
+- observed-load-v2 yeni6numericaraştırmaalanı(30günmesafe,7günstarts,fieldrelative,workoutracegapratio,2missingflag). FrozenUSarchive+yaş/isimdoğrulanmışidmandan hazırlanır; hedef/futuregünhariç,DNFmesafesi uydurulmaz. V1yaşeşleşmeeksikliği v2'de düzeltildi; eskiçıktı korunur.
+- Kontrollüeğitim5121fit/708validation:controltop1%26.6949,yük%28.1073 amaBrier/loglosskötüleşti. TestScoredfalse,activeModelChangedfalse; parentayarlarısabit, oldvalidationdiagnostic. PythonNode7referencepervariantdelta0. Yeniadayactiveyayınlanmadı.
+- Audit-current-runner-gaps günlük araştırmavektörlerini de kaydeder; gerçekverisayısı/missingalanları başarıartışı diye sunulmaz. Geceplanıvekalan8açıkbütünüylekapanmışsayılmaz.

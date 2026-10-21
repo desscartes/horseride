@@ -1,3 +1,4 @@
+import {acquireCollectionGate} from './collection-gate.mjs'
 import {createHash} from 'node:crypto'
 import './runtime-env.mjs'
 import {remoteDeployment} from './deployment-role.mjs'
@@ -11,6 +12,7 @@ import {isProcessRunning} from './process-liveness.mjs'
 
 process.chdir(fileURLToPath(new URL('../', import.meta.url)))
 if(remoteDeployment()){console.log('Collection and training are owned by the home server; local run skipped.');process.exit(0)}
+await acquireCollectionGate()
 const directory = 'data/maintenance'
 await mkdir(directory, { recursive: true })
 const lock = `${directory}/daily.lock`

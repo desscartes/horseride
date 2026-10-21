@@ -1,3 +1,4 @@
+import {acquireCollectionGate} from './collection-gate.mjs'
 import './runtime-env.mjs'
 import {mkdir,readFile,writeFile,rename,unlink} from 'node:fs/promises'
 import {spawn} from 'node:child_process'
@@ -7,6 +8,7 @@ import {isProcessRunning} from './process-liveness.mjs'
 import {remoteDeployment} from './deployment-role.mjs'
 process.chdir(fileURLToPath(new URL('../',import.meta.url)))
 if(remoteDeployment())throw Error('Morning preparation belongs to the home server')
+await acquireCollectionGate()
 const day=localDay(),directory='data/maintenance',lock=directory+'/morning.lock',path=`${directory}/morning-${day}.json`
 await mkdir(directory,{recursive:true})
 const json=async p=>JSON.parse(await readFile(p,'utf8'))
