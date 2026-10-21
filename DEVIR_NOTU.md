@@ -557,3 +557,8 @@ Son doğrulama:
 - 531sonuçlu/14gün ilktercih%30.70;441paired model%31.75 vsAGF%36.05. Altılı284sonuçlu9kazanç=%3.17; ortak ayaklı bağımlı kuponlar, bağımsız başarı kanıtı değil.
 - <30güven343yarış yaklaşık%24ilktercih;50+yalnız19yarış yaklaşık%63. Azörnekten yeni güven eşiği seçilmedi. 2-7atlı paired modelyaklaşık%36 vsAGF%45; sorun yalnız kalabalıkfield değil.
 - Sabah yeniTRadayı269race%27.51 vsincumbent%31.97;US384race%29.69 vs%29.95. Üstünlük yok, aktifmodel değişmedi. Öncelik gerçek kariyer/bireysel derece/idman boşlukları ve eğitim-canlı kapsam farkı; AGFkarşılaştırması korunmalı, yeni candidate yalnız ileri dönem kayıtlarıyla değerlendirilmeli.
+
+## 21 Ekim — kullanıcı talebiyle açık kabul listesi
+- IYILESTIRME_KABUL_LISTESI.md sırayla veri/model/kupon kabul işlerini tanımlar. İlk madde tamam: audit-current-runner-gaps.mjs bugünkü tüm aktif atları tek tek raporlar; model veya tahmin yazmaz. Kaynak bulunamaması debut değildir.
+- İlk envanter751aktif at: TR231(history2,idman3,bireysel2,damsire125);US217(history59,idman63,bireysel174,damsire191). Çekilenlerle anlık sayılar değişebilir. Diğer ülkeler de aynı dosyada.
+- Sonraki adım resmi TJK pedigree80batch TR/US başlatıldı (session67661), kaynak cooldownlarına uyulur. Yeni tamamlama sayısı bitiş raporundan okunmalı; başlaması veri kazanımı sayılmaz.
