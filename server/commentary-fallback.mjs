@@ -1,3 +1,4 @@
+import {jockeyComment} from './jockey-evidence.mjs'
 import {baselineSelectionReason} from './commentary-evidence.mjs'
 import {createHash} from 'node:crypto'
 import {readFile} from 'node:fs/promises'
@@ -13,11 +14,18 @@ export function emergencyCommentary(program,date,city,{now=new Date()}={}){
  return {date,city,sourceFingerprint:commentaryFingerprint(program,date,city),createdAt:now.toISOString(),cached:true,available:true,source:'automatic_verified_data_summary',analysisIsHistoricalForecast:false,programFetchedAt:program.fetchedAt,analysis}
 }
 export function supplementCommentary(current,fallback,program,date,city){
+ if(current?.date===date&&current?.city===city&&current.analysis?.races&&(program?.races||[]).some(r=>r.city===city&&Date.parse(raceStartISO(r,date))>Date.now()&&r.horses.some(h=>h.jockeyPerformance?.source==='dated_verified_archive_results'))){
+  current={...current,analysis:{...current.analysis,races:current.analysis.races.map(pred=>{
+   const race=program.races.find(r=>r.city===city&&Number(r.no)===Number(pred.raceNo));if(!race||Date.parse(raceStartISO(race,date))<=Date.now())return pred
+   return {...pred,picks:(pred.picks||[]).map(p=>{const h=race.horses.find(h=>h.name===p.horseName&&!h.outOfRace),other=(pred.picks||[]).map(x=>race.horses.find(h=>h.name===x.horseName&&!h.outOfRace)).find(h=>h&&h.name!==p.horseName),text=h?.jockeyPerformance?.source==='dated_verified_archive_results'?jockeyComment(h,date,other):'';return text&&!p.reason?.includes(text)?{...p,reason:[p.reason,text].filter(Boolean).join(' '),jockeyExplanationRevision:'dated-jockey-v1'}:p})}
+  })}}
+ }
+
  if(current?.date===date&&current?.city===city&&current.analysis?.races&&(program?.races||[]).some(r=>r.city===city&&r.rankingSource==='program_baseline'&&Date.parse(raceStartISO(r,date))>Date.now())){
   current={...current,analysis:{...current.analysis,races:current.analysis.races.map(pred=>{
    const race=program?.races?.find(r=>r.city===city&&Number(r.no)===Number(pred.raceNo))
    if(!race||race.rankingSource!=='program_baseline'||Date.parse(raceStartISO(race,date))<=Date.now())return pred
-   return {...pred,explanationRevision:'program-comparison-v1',picks:(pred.picks||[]).map(p=>{const horse=race.horses.find(h=>h.name===p.horseName&&!h.outOfRace),rival=(pred.picks||[]).map(x=>race.horses.find(h=>h.name===x.horseName&&!h.outOfRace)).find(h=>h&&h.name!==p.horseName);const reason=horse&&baselineSelectionReason(race,horse,rival);return reason?{...p,reason}:p})}
+   return {...pred,explanationRevision:'program-comparison-v1',picks:(pred.picks||[]).map(p=>{const horse=race.horses.find(h=>h.name===p.horseName&&!h.outOfRace),rival=(pred.picks||[]).map(x=>race.horses.find(h=>h.name===x.horseName&&!h.outOfRace)).find(h=>h&&h.name!==p.horseName);const baseline=horse&&baselineSelectionReason(race,horse,rival);const reason=baseline&&[baseline,jockeyComment(horse,date,rival)].filter(Boolean).join(' ');return reason?{...p,reason}:p})}
   })}}
  }
  if(!fallback)return current

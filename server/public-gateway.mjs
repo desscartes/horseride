@@ -1,3 +1,4 @@
+import {programWithJockeyEvidence} from './jockey-evidence.mjs'
 import {preparedOrEmergencyCommentary,supplementCommentary} from './commentary-fallback.mjs'
 import {fallbackProgram} from './program-fallback.mjs'
 import {createServer} from 'node:http'
@@ -73,7 +74,7 @@ export function createPublicGateway({upstream='http://127.0.0.1:8788',root=defau
     const city=url.searchParams.get('city')||'Tümü'
     if(city.length>80)return reply(400,{error:'Invalid city'})
     let commentaryProgram=null,commentaryBackup=null
-    if(url.pathname==='/api/analysis/daily')try{commentaryProgram=await programReader(date);commentaryBackup=await preparedOrEmergencyCommentary(commentaryProgram,date,city)}catch{}
+    if(url.pathname==='/api/analysis/daily')try{commentaryProgram=await programWithJockeyEvidence(await programReader(date));commentaryBackup=await preparedOrEmergencyCommentary(commentaryProgram,date,city)}catch{}
     const target=new URL(url.pathname,upstream)
     target.search=new URLSearchParams({date,city}).toString()
     // Never forward a public POST: expensive analysis/training stays server-managed.

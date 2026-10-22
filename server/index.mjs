@@ -1,3 +1,4 @@
+import {jockeyEvidence} from './jockey-evidence.mjs'
 import {recordRankingInputs} from './ranking-input-journal.mjs'
 import {streamingRankingHistories} from './streaming-ranking-history.mjs'
 import {parseRacePrizes,restoreProgramPrizes} from './race-prizes.mjs'
@@ -1562,13 +1563,12 @@ function buildHistoricalAnalysisContext(races, targetDate, {archive=null}={}) {
   for(const old of analysisHistory)for(const horse of old.horses){
     const result=old.results.get(horse.no)
     const key=`${old.date}:${normalizeMeetingName(old.city)}:${old.no}:${contextHorseKey(horse.name)}`
-    if(result?.finishPosition&&!knownFields.has(key)){knownFields.add(key);fieldRows.push({date:old.date,city:old.city,raceNo:old.no,horseName:horse.name,jockey:horse.jockey,finishPosition:result.finishPosition,closingOdds:result.closingOdds,modelRank:null})}
+    if(result?.finishPosition&&!knownFields.has(key)){knownFields.add(key);fieldRows.push({date:old.date,city:old.city,raceNo:old.no,horseName:horse.name,jockey:horse.jockey,surface:old.surface,distance:old.distance,finishPosition:result.finishPosition,closingOdds:result.closingOdds,modelRank:null})}
   }
-  const jockeySinceDate=formatDate(new Date(new Date(`${targetDate}T12:00:00`).getTime()-90*86400000)).iso
   const jockeyRows=new Map()
   for(const row of fieldRows){
     const jockey=contextJockeyKey(row.jockey)
-    if(!jockey||jockey==='bilinmiyor'||row.date<jockeySinceDate)continue
+    if(!jockey||jockey==='bilinmiyor'||row.date<sinceDate||row.date>=targetDate)continue
     const key=`${racingCountry(row.city)||'TR'}:${jockey}`
     if(!jockeyRows.has(key))jockeyRows.set(key,[])
     jockeyRows.get(key).push(row)
@@ -1628,10 +1628,7 @@ function buildHistoricalAnalysisContext(races, targetDate, {archive=null}={}) {
         const workout=horse.workout&&normalizeDateToken(horse.workout.date)<targetDate?horse.workout:workouts[0]||null
         return {
           ...horse,
-          jockeyPerformance: (() => {
-            const recent=jockeyRows.get(`${racingCountry(race.city)||'TR'}:${contextJockeyKey(horse.jockey)}`)||[]
-            return recent.length ? { source: 'previous_90_days_verified_results', starts: recent.length, wins: recent.filter((row) => row.finishPosition === 1).length, topThree: recent.filter((row) => row.finishPosition > 0 && row.finishPosition <= 3).length } : null
-          })(),
+          jockeyPerformance: jockeyEvidence(race,horse,targetDate,jockeyRows.get(`${racingCountry(race.city)||'TR'}:${contextJockeyKey(horse.jockey)}`)||[]),
           workout,
           workouts,
           paceEvidence:racePaces?Object.fromEntries(paceFeatureNames.map((name,i)=>[name,racePaces[horseIndex][i]])):undefined,

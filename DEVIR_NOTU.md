@@ -636,3 +636,10 @@ Son doğrulama:
 ## 22 Ekim — boş sürpriz alanı
 - Yarış ekranında AGF/kanıt şartları sağlanmadığında kuponlarla ortak legSurpriseSuggestion kullanılarak ilk iki dışındaki en yüksek sıralı aktif alternatif gösterilir. AGF doğrulanmıyorsa sürpriz diye etiketlenmez. Son6 sonuç sayımları/kilo/start somut gerekçeye eklendi. İki veya daha az koşan varsa yetersiz alan açıklanır; çekilenler dışlanır. Model sırası/olasılığı değiştirilmedi.
 - 4 surprise/policy test passed; guarded production UI built.
+
+## 22 Ekim — jokey katkısı ve açıklama açığı
+- Aktif TR_v4/US_v3 zaten jockeyWin, partnershipWin, jockeyRecent30Win kullanıyor. CatBoost PredictionValuesChange: TR11.029/.619/1.518; US8.005/.129/3.151. Bunlar model duyarlılığı; başarı artışı veya nedensel katkı değildir.
+- jockey-evidence.mjs tarih<hedef, ülke+jokey kimliği, tekil yarış/at ve geçerli sonuçlarla 30/90gün sayımları, aynı hipodrom/pist/±200m mesafe ve iki yıllık at-jokey ortaklığı çıkarır. Eksik veriyi kötü jokey saymaz. Açıklamalar dönem, start/galibiyet/ilk3 ve jokey değişikliğini aktarır; tam kariyer iddiası yok.
+- index tarihli bağlamı ve local-analysis payload güncellendi. Sabah fluent refresh joker özetini kimlik bağlı sidecar olarak kaydeder; gateway yalnız aynı tarih/at/jokey ve future race açıklamasına ekler, eski tarih ve değişmiş jokeye istatistik taşımaz. Tahmin/olasılık/geçmiş ledger değiştirilmez.
+- 14 yeni jokey araştırma girdisi frozen21Oct arşivinden TR/US için hazırlanıyor. run-jockey-research ortak gate+intelligence lock korur, parent ayarlar/temperature sabit kontrol+jokey adayını yalnız eski validation diagnostic üzerinde karşılaştırır. Aktif model terfisi yok; bağımsız başarı kanıtı değildir. state data/experiments/jockey-v1/state.json.
+- 16jokey/commentary/gateway test geçti. Hazırlık/karşılaştırma gerçek bitişi ve canlı metin ayrıca kontrol edilmeli.

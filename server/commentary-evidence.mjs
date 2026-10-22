@@ -1,3 +1,4 @@
+import {jockeyComment} from './jockey-evidence.mjs'
 import {surpriseCandidates} from '../src/data/surprisePolicy.js'
 import {parseWeight} from './data-quality.mjs'
 import {maidenEvidence} from './maiden-evidence.mjs'
@@ -79,10 +80,10 @@ export function baselineSelectionReason(race,horse,rival){
  return lines.join(' ')
 }
 export function fluentHorseReason(race,horse,date,rival){
- const baseline=baselineSelectionReason(race,horse,rival);if(baseline)return baseline
+ const baseline=baselineSelectionReason(race,horse,rival);if(baseline)return [baseline,jockeyComment(horse,date,rival)].filter(Boolean).join(' ')
  const runs=recentEvidenceRuns(horse,date),last=runs[0],same=horse.horsePerformance?.sameDistanceAndSurface,load=recentLoadEvidence(runs,horse.workouts||[],horse,race,date),lines=[]
  const maiden=maidenEvidence(race,horse,date)
- if(horse.australianEvidence?.career?.starts===0)return [detailedHorseChoices(race,horse,date).form[0],maiden?.text,'İlk yarışında bugünkü rakipleriyle karşılaştırılabilecek bir yarış performansı henüz oluşmadı.'].filter(Boolean).join(' ')
+ if(horse.australianEvidence?.career?.starts===0)return [detailedHorseChoices(race,horse,date).form[0],maiden?.text,'İlk yarışında bugünkü rakipleriyle karşılaştırılabilecek bir yarış performansı henüz oluşmadı.',jockeyComment(horse,date,rival)].filter(Boolean).join(' ')
  if(last)lines.push(`Son kayıtlı yarışında ${last.distance?last.distance+' metre ':''}${last.surface?last.surface+' pistte ':''}${last.finishPosition}. olması${last.finishPosition<=3?' yakın dönem formunu destekliyor':' nedeniyle güncel formunu yeniden göstermesi gerekiyor'}.`)
  if(positive(same?.starts))lines.push(`Bugünkü pistte ve yakın mesafelerdeki ${same.starts} kayıtlı koşuda ${num(same.wins)||0} galibiyet${num(same.topThree)!=null?' ve '+same.topThree+' ilk üç derecesi':''} bulunuyor${same.starts<3?'; bu karşılaştırma henüz dar bir örneğe dayanıyor':''}.`)
  const other=rival?.horsePerformance?.sameDistanceAndSurface
@@ -93,7 +94,7 @@ export function fluentHorseReason(race,horse,date,rival){
  if(maiden)lines.push(maiden.text)
  if(!last&&!positive(same?.starts))lines.push('Doğrulanmış yarış geçmişi sınırlı olduğu için bu adayın form ve pist uyumu hakkında güçlü bir sonuç çıkarılamıyor.','Programdaki bilgileri değerlendirmeye alınsa da rakiplerine karşı performans üstünlüğü henüz doğrulanmış değil.','Bu nedenle sıralamadaki yeri yüksek güvenli bir kazanma beklentisi olarak okunmamalı.')
  else if(lines.length<3)lines.push('Bu kayıtlar bugünkü rakiplerin tamamına karşı nasıl koşacağını tek başına belirlemiyor.')
- return lines.join(' ')
+ return [...lines,jockeyComment(horse,date,rival)].filter(Boolean).join(' ')
 }
 export function commentaryModelCaution(race,prediction){
  const country=racingCountry(race.city)

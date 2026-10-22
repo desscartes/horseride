@@ -8,7 +8,9 @@ const {buildHistoricalAnalysisContext}=await import('./index.mjs')
 const date=localDay(),program=readServedProgram(date),now=new Date(),directory=`data/maintenance/commentary-backups/${date}`
 if(!program?.races?.length)throw Error('No current program')
 await mkdir(directory,{recursive:true})
-const races=buildHistoricalAnalysisContext(program.races,date),report={date,updatedAt:now.toISOString(),races:0,picks:0,skippedStartedOrUnknown:0}
+const races=buildHistoricalAnalysisContext(program.races,date)
+await writeFile(`data/maintenance/jockey-evidence-${date}.json`,JSON.stringify({date,createdAt:new Date().toISOString(),archiveThrough:null,records:races.flatMap(r=>r.horses.map(h=>({city:r.city,raceNo:r.no,horseName:h.name,jockey:h.jockey,evidence:h.jockeyPerformance})))}))
+const report={date,updatedAt:now.toISOString(),races:0,picks:0,skippedStartedOrUnknown:0}
 for(const city of new Set(races.map(r=>r.city))){
  const record=findDailyAiAnalysis(date,city);if(!record?.analysis?.races?.length)continue
  let changed=0
