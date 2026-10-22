@@ -59,7 +59,27 @@ export function evidenceSurprise(race,picks,date,{allowedNames}={}){
  const best=candidates[0];if(!best)return null
  return {horseName:best.horse.name,reason:`${num(best.horse.marketShare)!=null?'Değerlendirme anındaki AGF payı %'+tr(best.horse.marketShare)+'; AGF':'AGF'} ve aday sıralamasında ilk ikinin dışında. ${best.proof.slice(0,2).join(' ')} Bu somut kayıtlar sürpriz aday olarak incelenmesini destekliyor; favorilere göre belirsizliği daha yüksek.`}
 }
+export function baselineSelectionReason(race,horse,rival){
+ if(race.rankingSource!=='program_baseline')return null
+ const digits=h=>(String(h.lastSix||'').match(/[0-9]/g)||[]).slice(-6)
+ const form=h=>{const ds=digits(h);return ds.length?ds.reduce((s,v)=>s+(v==='0'?0.15:Math.max(.1,1-(Number(v)-1)*.16)),0)/ds.length:.5}
+ const weights=race.horses.map(h=>parseWeight(h.weight)).filter(v=>v>0),min=Math.min(...weights)
+ const weight=h=>{const w=parseWeight(h.weight);return w>0&&Number.isFinite(min)?Math.max(.2,1-(w-min)/15):.5}
+ const lines=[],ds=digits(horse),w=parseWeight(horse.weight),rw=rival&&parseWeight(rival.weight)
+ if(ds.length)lines.push(`Programdaki son ${ds.length} sonuç hanesinde ${ds.filter(v=>v==='1').length} galibiyet ve ${ds.filter(v=>Number(v)>0&&Number(v)<=3).length} ilk üç sonucu var (kayıt: ${horse.lastSix}).`)
+ if(rival){
+  const rd=digits(rival),changes=[]
+  if(ds.length&&rd.length){const delta=(form(horse)-form(rival))*.42*100;changes.push(`sonuç dizisi ${delta>=0?'+':''}${tr(delta)} puan`)}
+  if(w>0&&rw>0){const delta=(weight(horse)-weight(rival))*.16*100;changes.push(`kilo bileşeni ${delta>=0?'+':''}${tr(delta)} puan`);lines.push(`${tr(w)} kilo taşıyor; ${rival.name} ${tr(rw)} kilo ile koşuyor${w!==rw?`, aralarında ${tr(Math.abs(w-rw))} kilo fark var`:''}.`)}
+  if(changes.length)lines.push(`Mevcut program puanlamasında ${rival.name} ile karşılaştırıldığında ${changes.join(', ')} fark oluşturuyor (100 puan ölçeğinde).`)
+  if(positive(horse.start)&&positive(rival.start))lines.push(`Start yeri ${horse.start}, ${rival.name} için ${rival.start}; bu bilgi tek başına pistte avantaj kanıtı değildir.`)
+ }
+ if(!lines.length)return null
+ lines.push('Bu sıralama sonuç dizisi ve program bilgilerini puanlıyor; yarışların sınıfı, rakip gücü ve koşu içi şartları doğrulanmadan performans üstünlüğü ya da kazanma olasılığı olarak yorumlanamaz.')
+ return lines.join(' ')
+}
 export function fluentHorseReason(race,horse,date,rival){
+ const baseline=baselineSelectionReason(race,horse,rival);if(baseline)return baseline
  const runs=recentEvidenceRuns(horse,date),last=runs[0],same=horse.horsePerformance?.sameDistanceAndSurface,load=recentLoadEvidence(runs,horse.workouts||[],horse,race,date),lines=[]
  const maiden=maidenEvidence(race,horse,date)
  if(horse.australianEvidence?.career?.starts===0)return [detailedHorseChoices(race,horse,date).form[0],maiden?.text,'İlk yarışında bugünkü rakipleriyle karşılaştırılabilecek bir yarış performansı henüz oluşmadı.'].filter(Boolean).join(' ')

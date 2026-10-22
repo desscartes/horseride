@@ -17,3 +17,9 @@ test('Malaysian program scoring cannot be presented as a high-confidence trained
  assert.equal(caution.confidence,'low');assert.match(caution.risks[0],/Malezya.*etkin model yok/)
  assert.deepEqual(commentaryModelCaution({city:'Belmont Park ABD',rankingSource:'local_trained_model'},{confidence:'high'}),{})
 })
+
+test('baseline explanation compares actual card facts without inventing career or probability',()=>{
+ const a={name:'SNEAKY',lastSix:'362116',weight:51.5,start:10},b={name:'FIRE',lastSix:'125225',weight:57.5,start:3}
+ const reason=fluentHorseReason({rankingSource:'program_baseline',horses:[a,b]},a,'2026-10-22',b)
+ assert.match(reason,/2 galibiyet ve 4 ilk üç/);assert.match(reason,/6 kilo fark/);assert.match(reason,/sonuç dizisi -2,2 puan/);assert.match(reason,/kilo bileşeni \+6,4 puan/);assert.match(reason,/Start yeri 10/);assert.doesNotMatch(reason,/son yarışını.*kazandı|%/)
+})

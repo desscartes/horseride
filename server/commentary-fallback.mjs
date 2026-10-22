@@ -1,3 +1,4 @@
+import {baselineSelectionReason} from './commentary-evidence.mjs'
 import {createHash} from 'node:crypto'
 import {readFile} from 'node:fs/promises'
 import {fileURLToPath} from 'node:url'
@@ -12,6 +13,13 @@ export function emergencyCommentary(program,date,city,{now=new Date()}={}){
  return {date,city,sourceFingerprint:commentaryFingerprint(program,date,city),createdAt:now.toISOString(),cached:true,available:true,source:'automatic_verified_data_summary',analysisIsHistoricalForecast:false,programFetchedAt:program.fetchedAt,analysis}
 }
 export function supplementCommentary(current,fallback,program,date,city){
+ if(current?.date===date&&current?.city===city&&current.analysis?.races&&(program?.races||[]).some(r=>r.city===city&&r.rankingSource==='program_baseline'&&Date.parse(raceStartISO(r,date))>Date.now())){
+  current={...current,analysis:{...current.analysis,races:current.analysis.races.map(pred=>{
+   const race=program?.races?.find(r=>r.city===city&&Number(r.no)===Number(pred.raceNo))
+   if(!race||race.rankingSource!=='program_baseline'||Date.parse(raceStartISO(race,date))<=Date.now())return pred
+   return {...pred,explanationRevision:'program-comparison-v1',picks:(pred.picks||[]).map(p=>{const horse=race.horses.find(h=>h.name===p.horseName&&!h.outOfRace),rival=(pred.picks||[]).map(x=>race.horses.find(h=>h.name===x.horseName&&!h.outOfRace)).find(h=>h&&h.name!==p.horseName);const reason=horse&&baselineSelectionReason(race,horse,rival);return reason?{...p,reason}:p})}
+  })}}
+ }
  if(!fallback)return current
  if(current?.date!==date||current?.city!==city)current=null
  const valid=new Map((program?.races||[]).filter(r=>r.city===city).map(r=>[Number(r.no),new Set(r.horses.filter(h=>!h.outOfRace).map(h=>h.name))]))
