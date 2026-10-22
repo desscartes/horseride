@@ -26,7 +26,7 @@ try{
  // A live maintenance owner must finish before any collection or training writes.
  await stage('initial_program',()=>run('server/program-refresh.mjs',[day]))
  await stage('program_maternal_lines',()=>run('server/collect-program-maternal-lines.mjs',[day]))
- await stage('current_pedigree',()=>run('server/collect-tjk-pedigree.mjs',[],{PEDIGREE_COUNTRIES:'TR,US',PEDIGREE_BATCH_SIZE:'80',PEDIGREE_CURRENT_ONLY:'1'}))
+ await stage('current_pedigree',()=>run('server/collect-tjk-pedigree.mjs',[],{PEDIGREE_COUNTRIES:'TR,US',PEDIGREE_BATCH_SIZE:'200',PEDIGREE_CURRENT_ONLY:'1'}))
  await stage('current_workouts',()=>run('server/collect-current-missing-workouts.mjs'))
  await stage('us_workouts',()=>run('server/collect-equibase-workouts.mjs'))
  await stage('program',()=>run('server/program-refresh.mjs',[day]))

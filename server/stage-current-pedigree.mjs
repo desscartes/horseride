@@ -1,0 +1,12 @@
+import './runtime-env.mjs'
+import {readFile,writeFile,mkdir,rename} from 'node:fs/promises'
+import {createHash} from 'node:crypto'
+import {localDay} from './maintenance-policy.mjs'
+import {readServedProgram} from './served-program.mjs'
+import {parseTjkPedigree} from './pedigree-registry.mjs'
+const day=localDay(),directory=`data/maintenance/pedigree-staging-${day}`,gap=JSON.parse(await readFile(`data/maintenance/current-runner-gaps-${day}.json`,'utf8')),program=readServedProgram(day)
+await mkdir(directory,{recursive:true});let retries={};try{retries=JSON.parse(await readFile('data/external/tjk-pedigree/retries.json','utf8'))}catch{}
+const targets=gap.rows.filter(r=>r.country==='TR'&&r.missing.includes('damsire')&&/^[1-9]\d*$/.test(String(r.horseId))&&!(Date.parse(retries[r.horseId]?.after||'')>Date.now())).map(r=>program.races.find(p=>p.city===r.city&&Number(p.no)===Number(r.raceNo))?.horses.find(h=>h.name===r.name)).filter(Boolean).slice(0,200)
+const report={day,startedAt:new Date().toISOString(),scope:'Isolated official static ancestry staging only; no live registry/database/model writes during training',targets:targets.length,saved:[],failures:[]};let next=0;const deadline=Date.now()+4*60000
+await Promise.all(Array.from({length:2},async()=>{while(next<targets.length&&Date.now()<deadline){const h=targets[next++],id=String(h.horseId),url=`https://www.tjk.org/TR/YarisSever/Query/ConnectedPage/AtKosuBilgileri?1=1&QueryParameter_AtId=${id}&Era=today`;try{const r=await fetch(url,{signal:AbortSignal.timeout(15000)});if([403,429].includes(r.status)){next=targets.length;report.stopReason=`Source HTTP ${r.status}`;throw Error(`HTTP ${r.status}`)}if(!r.ok)throw Error(`HTTP ${r.status}`);const html=await r.text(),row=parseTjkPedigree(html,h,url);if(!row)throw Error('Official identity/parents not verified');await writeFile(`${directory}/${id}.html`,html);report.saved.push({horseId:id,horse:h,sha256:createHash('sha256').update(html).digest('hex'),sourceUrl:url,capturedAt:new Date().toISOString()})}catch(e){report.failures.push({horseId:id,error:e.message,failedAt:new Date().toISOString()})}}}))
+report.finishedAt=new Date().toISOString();await writeFile(directory+'/manifest.json.tmp',JSON.stringify(report,null,2));await rename(directory+'/manifest.json.tmp',directory+'/manifest.json');console.log(JSON.stringify({targets:targets.length,saved:report.saved.length,failed:report.failures.length,remaining:targets.length-report.saved.length-report.failures.length}))

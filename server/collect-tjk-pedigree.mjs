@@ -1,3 +1,5 @@
+import {acquireCollectionGate} from './collection-gate.mjs'
+import {applyStagedPedigree} from './apply-staged-pedigree.mjs'
 import './runtime-env.mjs'
 import {historicalRaceDates,iterateHistoricalDay} from './database.mjs'
 import {readServedProgram} from './served-program.mjs'
@@ -8,6 +10,8 @@ import {parseTjkPedigree,validatedRegistryPedigree,saveRegistryPedigree} from '.
 import {remoteDeployment} from './deployment-role.mjs'
 import {mkdir,writeFile,readFile} from 'node:fs/promises'
 if(remoteDeployment())throw Error('Pedigree collection belongs to the home server')
+await acquireCollectionGate()
+await applyStagedPedigree(localDay())
 const today=localDay(),horses=new Map(),limit=Math.max(1,Math.min(200,Number(process.env.PEDIGREE_BATCH_SIZE)||40))
 const selectedCountries=new Set((process.env.PEDIGREE_COUNTRIES||'TR').split(',').map(c=>c.trim()).filter(Boolean))
 if([...selectedCountries].some(c=>!['TR','US','GB','FR','ZA'].includes(c)))throw Error('Unsupported pedigree collection country')
