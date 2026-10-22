@@ -1,3 +1,4 @@
+import {preparedOrEmergencyCommentary,supplementCommentary} from './commentary-fallback.mjs'
 import {fallbackProgram} from './program-fallback.mjs'
 import {createServer} from 'node:http'
 import {readFile,stat} from 'node:fs/promises'
@@ -71,19 +72,23 @@ export function createPublicGateway({upstream='http://127.0.0.1:8788',root=defau
     if(![shiftDay(day,-1),day,shiftDay(day,1)].includes(date))return reply(400,{error:'Yalnızca dün, bugün ve yarın kullanılabilir.'})
     const city=url.searchParams.get('city')||'Tümü'
     if(city.length>80)return reply(400,{error:'Invalid city'})
+    let commentaryProgram=null,commentaryBackup=null
+    if(url.pathname==='/api/analysis/daily')try{commentaryProgram=await programReader(date);commentaryBackup=await preparedOrEmergencyCommentary(commentaryProgram,date,city)}catch{}
     const target=new URL(url.pathname,upstream)
     target.search=new URLSearchParams({date,city}).toString()
     // Never forward a public POST: expensive analysis/training stays server-managed.
     let response,payload
     try{
-     response=await fetcher(target,{method:'GET',signal:AbortSignal.timeout(url.pathname==='/api/races'?5000:15000)})
-     if(url.pathname==='/api/races'&&response.status>=500)throw Error('Upstream unavailable')
+     response=await fetcher(target,{method:'GET',signal:AbortSignal.timeout(url.pathname==='/api/analysis/daily'?2000:url.pathname==='/api/races'?5000:15000)})
+     if((['/api/races','/api/analysis/daily'].includes(url.pathname)&&response.status>=500)||(url.pathname==='/api/analysis/daily'&&commentaryBackup&&!response.ok))throw Error('Upstream unavailable')
      payload=await response.json()
     }catch(error){
+     if(url.pathname==='/api/analysis/daily'&&commentaryBackup)return reply(200,commentaryBackup)
      if(url.pathname==='/api/races'){try{const cached=fallbackProgram(await programReader(date),date,city);if(cached)return reply(200,cached)}catch{}}
      throw error
     }
-    if(req.method==='POST'&&payload.job?.status==='running')return reply(202,{job:payload.job})
+    if(url.pathname==='/api/analysis/daily'&&commentaryBackup)payload=supplementCommentary(payload,commentaryBackup,commentaryProgram,date,city)
+    if(req.method==='POST'&&!payload.analysis&&payload.job?.status==='running')return reply(202,{job:payload.job})
     if(req.method==='POST'&&!payload.analysis)return reply(503,{error:'Analiz sunucuda hazırlanıyor; hazır olduğunda otomatik gösterilecek.'})
     return reply(response.status,payload)
    }

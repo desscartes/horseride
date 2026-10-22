@@ -45,3 +45,8 @@ test('program survives upstream outage using same-day city cache without exposin
 test('program cache from another date cannot satisfy request',async()=>{
  const server=createPublicGateway({fetcher:async()=>new Response('unavailable',{status:503}),programReader:async()=>({date:'2000-01-01',races:[{city:'Bursa'}]})});await new Promise(r=>server.listen(0,'127.0.0.1',r));try{assert.equal((await fetch(`http://127.0.0.1:${server.address().port}/api/races?date=${localDay()}`)).status,502)}finally{await new Promise(r=>server.close(r))}
 })
+
+test('commentary survives upstream outage and running jobs with explicit data summary',async()=>{
+ const date=new Date(Date.now()+86400000).toLocaleDateString('sv-SE',{timeZone:'Europe/Istanbul'}),city='Geraldton Avustralya',program={date,races:[{city,no:5,time:'23:59',distance:'1113m',surface:'Çim',horses:[{no:1,name:'A',jockey:'J',weight:55,start:1},{no:2,name:'B',jockey:'K',weight:56,start:2}]}]}
+ for(const mode of ['offline','running']){const server=createPublicGateway({fetcher:async()=>{if(mode==='offline')throw Error('offline');return Response.json({date,city,job:{status:'running'}})},programReader:async()=>program});await new Promise(r=>server.listen(0,'127.0.0.1',r));try{const response=await fetch(`http://127.0.0.1:${server.address().port}/api/analysis/daily`,{method:'POST',body:JSON.stringify({date,city,raceNo:5,async:true})}),v=await response.json();assert.equal(response.status,200);assert.equal(v.analysis.races[0].raceNo,5);assert.equal(v.source,'automatic_verified_data_summary');assert.equal(v.job,undefined)}finally{await new Promise(r=>server.close(r))}}
+})
