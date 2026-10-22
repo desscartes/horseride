@@ -7,6 +7,7 @@
     [switch]$Sign
 )
 $ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName System.IO.Compression.FileSystem
 $projectRoot = Split-Path $PSScriptRoot -Parent
 $buildRoot = Join-Path $projectRoot '.migration\android-local\project'
 $env:JAVA_HOME = (Get-ChildItem $ToolRoot -Directory | Where-Object Name -Like 'jdk-*' | Select-Object -First 1).FullName
