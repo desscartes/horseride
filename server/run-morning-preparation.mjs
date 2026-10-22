@@ -24,14 +24,11 @@ try{
  await save()
  await stage('public_access',()=>run('server/check-public-access.mjs'))
  // A live maintenance owner must finish before any collection or training writes.
- await stage('maintenance',async()=>{for(;;){let owner;try{owner=await json(directory+'/daily.lock')}catch(e){if(e.code!=='ENOENT')throw e}if(!owner||!isProcessRunning(owner.pid))break;await new Promise(r=>setTimeout(r,30000))}let state;try{state=await json(directory+'/state.json')}catch{}if(state?.day!==day||!state.finishedAt)await run('server/daily-maintenance.mjs');else report.maintenanceReused={finishedAt:state.finishedAt,phase:state.phase,errors:state.errors}})
  await stage('initial_program',()=>run('server/program-refresh.mjs',[day]))
  await stage('program_maternal_lines',()=>run('server/collect-program-maternal-lines.mjs',[day]))
- await stage('current_pedigree',()=>run('server/collect-tjk-pedigree.mjs',[],{PEDIGREE_COUNTRIES:'TR,US',PEDIGREE_BATCH_SIZE:'200'}))
- await stage('training_pedigree',()=>run('server/collect-tjk-pedigree.mjs',[],{PEDIGREE_COUNTRIES:'TR',PEDIGREE_BATCH_SIZE:'120',PEDIGREE_PRIORITY:'training_frequency',PEDIGREE_HISTORY_THROUGH:shiftDay(day,-30)}))
+ await stage('current_pedigree',()=>run('server/collect-tjk-pedigree.mjs',[],{PEDIGREE_COUNTRIES:'TR,US',PEDIGREE_BATCH_SIZE:'80',PEDIGREE_CURRENT_ONLY:'1'}))
  await stage('current_workouts',()=>run('server/collect-current-missing-workouts.mjs'))
  await stage('us_workouts',()=>run('server/collect-equibase-workouts.mjs'))
- await stage('historical_prizes',()=>run('server/collect-historical-prizes.mjs',[],{PRIZE_COUNTRIES:'TR,US',PRIZE_MEETINGS_PER_PERIOD:'20',PRIZE_PERIODS:'train',PRIZE_SPREAD_MONTHS:'1'}))
  await stage('program',()=>run('server/program-refresh.mjs',[day]))
  await stage('coverage',async()=>{await run('server/audit-country-evidence.mjs');const audit=await json(directory+'/country-evidence-audit.json');report.coverage=Object.fromEntries(Object.entries(audit.countries).filter(([,r])=>r.date===day).map(([country,r])=>[country,{runners:r.runners,missing:Object.fromEntries(['damsire','history','workout','ownTimedRun','trackCondition'].map(k=>[k,r.runners-r.counts[k]]))}]));report.dataComplete=Object.values(report.coverage).every(r=>Object.values(r.missing).every(n=>n===0))})
  // Reuse existing forecasts; never delete old predictions to manufacture a better record.
@@ -41,6 +38,10 @@ try{
  await stage('coupon_quality',()=>run('server/audit-coupon-quality.mjs'))
  await stage('probability_quality',()=>run('server/audit-probability-quality.mjs'))
  await stage('fluent_commentaries',()=>run('server/refresh-fluent-commentaries.mjs'))
+ await stage('prestart_readiness',()=>run('server/audit-preparation-readiness.mjs',[day]))
+ await stage('maintenance',async()=>{for(;;){let owner;try{owner=await json(directory+'/daily.lock')}catch(e){if(e.code!=='ENOENT')throw e}if(!owner||!isProcessRunning(owner.pid))break;await new Promise(r=>setTimeout(r,30000))}let state;try{state=await json(directory+'/state.json')}catch{}if(state?.day!==day||!state.finishedAt)await run('server/daily-maintenance.mjs');else report.maintenanceReused={finishedAt:state.finishedAt,phase:state.phase,errors:state.errors}})
+ await stage('training_pedigree',()=>run('server/collect-tjk-pedigree.mjs',[],{PEDIGREE_COUNTRIES:'TR',PEDIGREE_BATCH_SIZE:'120',PEDIGREE_PRIORITY:'training_frequency',PEDIGREE_HISTORY_THROUGH:shiftDay(day,-30)}))
+ await stage('historical_prizes',()=>run('server/collect-historical-prizes.mjs',[],{PRIZE_COUNTRIES:'TR,US',PRIZE_MEETINGS_PER_PERIOD:'20',PRIZE_PERIODS:'train',PRIZE_SPREAD_MONTHS:'1'}))
  // Publish explanations from the verified serving model before lengthy candidate fitting.
  await stage('training',async()=>{const root=`data/intelligence-models/${day}/morning`;let done;try{done=await json(root+'/training-state.json')}catch{}if(done?.phase!=='complete')await run('server/run-intelligence-training.mjs',[root],{RACE_PRIZE_REGISTRY_PATH:'data/external/race-prizes/records.json'});report.trainingReport=root+'/training-report.json'})
  await stage('training_input_coverage',()=>run('server/audit-training-evidence.mjs',[`data/intelligence-models/${day}/morning`]))

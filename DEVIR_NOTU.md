@@ -604,3 +604,16 @@ Son doğrulama:
 - observed-load-v2 yeni6numericaraştırmaalanı(30günmesafe,7günstarts,fieldrelative,workoutracegapratio,2missingflag). FrozenUSarchive+yaş/isimdoğrulanmışidmandan hazırlanır; hedef/futuregünhariç,DNFmesafesi uydurulmaz. V1yaşeşleşmeeksikliği v2'de düzeltildi; eskiçıktı korunur.
 - Kontrollüeğitim5121fit/708validation:controltop1%26.6949,yük%28.1073 amaBrier/loglosskötüleşti. TestScoredfalse,activeModelChangedfalse; parentayarlarısabit, oldvalidationdiagnostic. PythonNode7referencepervariantdelta0. Yeniadayactiveyayınlanmadı.
 - Audit-current-runner-gaps günlük araştırmavektörlerini de kaydeder; gerçekverisayısı/missingalanları başarıartışı diye sunulmaz. Geceplanıvekalan8açıkbütünüylekapanmışsayılmaz.
+
+## 22 Ekim sabah hazırlığı — sıra ve gece kontrolü
+- Devirnotu/raporlar/kilitler okundu. Günlükbakım19056gerçekcanlı,collectiongate/dailylock sahibi; enrichmentdevam. Sabah runner session42167başlatıldı,ortakgatearkasında bekliyor; kendi morninglock henüzalınmadı. İkinci bakım/eğitim yok.
+- 05/07 program ve maternaljobları gerçekWindowsplanındaexit0tamam. Bugünküprogram05:48:52Zsnapshot87race11meeting:TR,US,AU,FR,GB,ZA,CAprogramları mevcut. Program varlığı tamkanıt kapsamı anlamına gelmez.
+- API10108healthy05:58:48Z. Eski15648intelligenceownerGetCimlistesinde yok, eski stateexportingGB'de kalmış; kesilmiş gece eğitimi tamamlandı sayılmaz. Aktifmodeldeyeniüstünlükiddiasıyok. Mevcut bakım staleownerdenetimiylekendi eğitimini yapacak; dışarıdan kilitsilinmedi.
+- morning-preflight-2026-10-22.json kayıtlı. Sabah bitişi/yorumlar/kapsam/yeniadaylar henüzdoğrulanmadı. Sonraki kontrol42167/morning-2026-10-22.json ve mevcut19056fazı; kopyajob açma.
+
+## 22 Ekim — ilk yarış hazırlığı akışı düzeltildi
+- Kullanıcının talebi: sabah kartını al, kazanmaolasılığı içingerekli kanıtları tamamla veilkbaşlangıçöncesihazırlığı doğrula. Mevcut akış heavymaintenanceöncegeldiği için canlıhazırlığı geciktiriyordu. Morninginitialprogram/currentsoy/idman/commentaries/fluentönce, historicalpedigree/prize+maintenance+training sonra alındı. Soy80current-only; sabah hedefi canlıveriöncelikli.
+- 05'tenitibarensoy/idmanpartileri;US06idman,06audit eklendi. Yarışa<=60dk varken30dkdaneski kart için dinamikprestartrefreshönceliği eklendi; jobslotdurumu/dedupaynıgatekorunur. Resmiprogram yenilemesijokey,kilo,start,takı,çekilen/pistgüncellemesini, mevcutforecasttoplayıcıhavayıyeniler.
+- preparation-readiness.mjs/audit-preparation-readiness.mjs hedefilkstart/30dköncehedef,program<=60dk,actualmodelmethod/trainedThrough<day,numericprobs,coreentries,aynıfieldkapsamşartlarını raporlar. PredictionAvailable ayrı; eksik/unknownkapsam varsa servingReadyfalse. Başlamış yarışreadyolamaz; otomatikbaşarıüstünlüğüiddiasıyok. Günlükeğitim yalnızöncekigünbitmişsonuçlar;bugünküetiketyok.
+- 8schedule/gate/readinesstestpassed; sonstrictness3testpassed. Reorderedmorningqueuedold23036(processnoownlock) durdurulup26061sessioniletekkopyayüklendi; aktifdaily19056kesilmedi/locksilinmedi. O sıradadailytraining_intelligence; commonqueue nedeniylebugünküeksiksizilkbaşlangıçhedefi henüzsağlanmışsayılmaz.
+- Readiness22Ekim87raceilkupcoming09:37TR,hedef09:07TR;bugünkücoveragebilinmeyen/eksikleri tamhazır sayılmadı. Kaynaktaolmayanalanuydurulamaz; sırf eğitimyenilemek başarıgarantisi değildir. Scriptsource güncel, adayterfi koşulları aynen korunur.

@@ -1,0 +1,3 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {prestartRefreshJob} from './prestart-refresh-plan.mjs'
+const date='2026-10-22',now=new Date('2026-10-22T06:00:00Z'),p={date,fetchedAt:'2026-10-22T05:00:00Z',races:[{time:'09:37'}]}
+test('imminent races get bounded priority refresh, fresh and completed slots do not',()=>{const j=prestartRefreshJob(p,date,now);assert.equal(j.script,'server/program-refresh.mjs');assert.equal(prestartRefreshJob({...p,fetchedAt:'2026-10-22T05:50:00Z'},date,now),null);assert.equal(prestartRefreshJob(p,date,now,{[j.id]:{status:'complete'}}),null);assert.equal(prestartRefreshJob(p,date,new Date('2026-10-22T06:38:00Z')),null);assert.equal(prestartRefreshJob({...p,date:'2026-10-21'},date,now),null)})

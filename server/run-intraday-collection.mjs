@@ -1,3 +1,5 @@
+import {prestartRefreshJob} from './prestart-refresh-plan.mjs'
+import {readServedProgram} from './served-program.mjs'
 import {acquireCollectionGate} from './collection-gate.mjs'
 import './runtime-env.mjs'
 import {mkdir,readFile,writeFile,rename,unlink} from 'node:fs/promises'
@@ -20,7 +22,7 @@ try{await writeFile(lock,JSON.stringify({pid:process.pid,day}),{flag:'wx'})}catc
 try{
  for(const name of ['morning.lock','daily.lock','intelligence-training.lock'])if(await owner(dir+'/'+name)){console.log(JSON.stringify({status:'deferred',reason:name}));process.exitCode=0;throw Object.assign(Error('deferred'),{deferred:true})}
  let state={day,jobs:{}};try{state=JSON.parse(await readFile(file,'utf8'))}catch(e){if(e.code!=='ENOENT')throw e}
- const parts=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Istanbul',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date()).split(':').map(Number),minute=parts[0]*60+parts[1],job=nextCollectionJob(day,minute,state.jobs)
+ const parts=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Istanbul',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date()).split(':').map(Number),minute=parts[0]*60+parts[1],job=prestartRefreshJob(readServedProgram(day),day,new Date(),state.jobs)||nextCollectionJob(day,minute,state.jobs)
  if(!job){console.log(JSON.stringify({status:'no_due_job'}))}else{
   const save=async()=>{await writeFile(file+'.tmp',JSON.stringify(state,null,2));await rename(file+'.tmp',file)}
   const old=state.jobs[job.id]||{},record=state.jobs[job.id]={...old,status:'running',attempts:(old.attempts||0)+1,lastAttemptAtMinute:minute,startedAt:new Date().toISOString(),script:job.script};await save()
