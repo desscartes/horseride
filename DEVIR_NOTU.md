@@ -632,3 +632,7 @@ Son doğrulama:
 - Windows HorseRide-Commentary-Watchdog5dk görevigizli/düşüköncelik/currentuser,IgnoreNew kuruldu; taskexit0. Eğitimkapısınıbeklemeden hafifprogramfileokur;11meeting83upcomingracehazırladı. Gatewayhazırlıkcache'ini gerçektenkullanır; kaynakdeğişirse anlık yedekhesaplanır.
 - 7testpassed:offline/runningjobPOST200summary,wrongdate,poststart,staleidentityreddi,oldvalidcommentunchanged,publicallowlist. Dağıtımsonrası dışPOSTGeraldton200595ms,race5true;Keeneland200180ms,race5true. BunormalAPIreadyyanıtıydı;offlinefailoverayrıcaintegrationtestgeçti. Geçit20324sonrayeniPIDmetadata kaydında.
 - install-commentary-watchdog.ps1 +taskwrapper sürümlendi; kaynakların/modelkalitesinin bütünboşluklarıkapandıiddiasıyok. Modelgirdileri/olasılıklarvegeçmiştahminler değiştirilmedi.
+
+## 22 Ekim — boş sürpriz alanı
+- Yarış ekranında AGF/kanıt şartları sağlanmadığında kuponlarla ortak legSurpriseSuggestion kullanılarak ilk iki dışındaki en yüksek sıralı aktif alternatif gösterilir. AGF doğrulanmıyorsa sürpriz diye etiketlenmez. Son6 sonuç sayımları/kilo/start somut gerekçeye eklendi. İki veya daha az koşan varsa yetersiz alan açıklanır; çekilenler dışlanır. Model sırası/olasılığı değiştirilmedi.
+- 4 surprise/policy test passed; guarded production UI built.

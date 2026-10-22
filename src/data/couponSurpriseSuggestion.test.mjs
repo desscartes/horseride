@@ -10,3 +10,9 @@ test('every normal field gets an outside-main alternative; favorite and withdraw
  race.horses[2].outOfRace=true;assert.notEqual(legSurpriseSuggestion(race,prediction).number,3)
  assert.equal(legSurpriseSuggestion({horses:race.horses.slice(0,2)},prediction).available,false)
 })
+
+test('alternative gives actual card evidence without inventing a win probability',()=>{
+ const race=fixture();race.horses[2]={...race.horses[2],lastSix:'362116',weight:51.5,start:10}
+ const result=legSurpriseSuggestion(race,{picks:[{horseName:'H0'},{horseName:'H1'}]})
+ assert.equal(result.horseName,'H2');assert.match(result.reason,/2 galibiyet, 4 ilk üç/);assert.match(result.reason,/51,5 kilo/);assert.doesNotMatch(result.reason,/%|kazanacak/)
+})
