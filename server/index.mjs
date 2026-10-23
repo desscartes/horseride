@@ -1,3 +1,4 @@
+import {retrySqliteBusy} from './sqlite-retry.mjs'
 import {jockeyEvidence} from './jockey-evidence.mjs'
 import {recordRankingInputs} from './ranking-input-journal.mjs'
 import {streamingRankingHistories} from './streaming-ranking-history.mjs'
@@ -2353,8 +2354,8 @@ async function collectHorseWorkouts(date,city,limit=100,{horseIds=null}={}){
       const profile=await fetchOfficialProfile(url,'https://www.tjk.org/',city,'tjk_horse_workouts')
       const workouts=summarizeWorkoutHistory(profile.tables,horse.name,date)
       if(!workouts.length)throw new Error('At ve tarih ile doğrulanmış idman kaydı bulunamadı')
-      saveHorseWorkouts(date,race.city,race.no,horse.no,horse.horseId,workouts)
-      if(profile.rawSource)saveProgram({date,city,fetchedAt:new Date().toISOString(),races:[],rawSources:[profile.rawSource]})
+      await retrySqliteBusy(()=>saveHorseWorkouts(date,race.city,race.no,horse.no,horse.horseId,workouts))
+      if(profile.rawSource)await retrySqliteBusy(()=>saveProgram({date,city,fetchedAt:new Date().toISOString(),races:[],rawSources:[profile.rawSource]}))
       report.withWorkouts++;consecutiveFailures=0
     }catch(error){consecutiveFailures++;report.failures.push({raceNo:race.no,horseName:horse.name,error:error.message})}
   })

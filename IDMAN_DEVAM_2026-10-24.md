@@ -1,0 +1,7 @@
+
+## 24 Ekim — idman toplayıcısının devam kuyruğu ve kilit hatası
+- 23Ekim20:52Z eski ABD raporu400sayfa/213işlenmemiş gösteriyordu. Kalıcıqueue.json ile öncelik okunmamış sayfalara ve en eski denemeye verildi.2dakika sınırı,2işçi,15sHTTPtimeout;403/40124saat,4291saat,geçici hata15dakika bekler. Koruma aşılmaz. Başarısız/kalan sayfa varsa CLI artık başarısız durum döndürür; günlük iş yanlış complete sayılmaz. DoğrudanCLI ortakcollectiongate alır.
+- Gerçek çalıştırma23Ekim20:59:40Z:401/401sayfa,0hata,0kalan,complete true. Arşiv23456→23884 (+428). 23Ekimgeçprogramında245aktifUSat/191eşleşme; yeni428kayıt bu alanın eksik54atını kapatmadı. Sonuçlar workout-resume-2026-10-24.json. Yeni kayıt başarı artışı sayılmadı; eski tahmin yazılmadı.
+- Türkiye son23Ekim20:07Zişinde3atın kaydı tamamlanmış, bir at database is locked yüzünden kaydedilememişti. collectHorseWorkouts veri ve hamkaynak kayıtlarına mevcut boundedretrySqliteBusy eklendi. KolektörCLI de ortakgate korur; kalıcı hata görünür kalır.
+-10kuyruk/kimlik/tarih/kilit test passed. SQLite kaynak hatası yeniden denemesi yapılmaz. Yeni24Ekimprogramı00:00'da henüz yayımlanmış yerel snapshot değil; bugünkü kapsam eski23Ekimverisi diye sunulmaz. Sabah/gün içi mevcut işleri yeni kodu kullanacak.
+- Açık: ABD tarihsel fit döneminde idman yok; AU kaynağı collection-report blocked_by_source_verification, otomatik tekrar yasak korunuyor; GB/ZA doğrulanmış idman kaynağı yok. Equibase kamu takvimi yakın tarihleri gösteriyor, eski fit boşluğunu kapattığına kanıt yok. Modeller değiştirilmedi.

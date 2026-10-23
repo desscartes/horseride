@@ -1,9 +1,11 @@
 process.env.HORSERIDE_NO_LISTEN='1'
+import {acquireCollectionGate} from './collection-gate.mjs'
 import {writeFile} from 'node:fs/promises'
 import {localDay} from './maintenance-policy.mjs'
 import {readServedProgram} from './served-program.mjs'
 import {workoutEvidence} from './workout-evidence.mjs'
 import {racingCountry} from './foreign-data.mjs'
+await acquireCollectionGate()
 const {buildHistoricalAnalysisContext,collectHorseWorkouts}=await import('./index.mjs')
 const day=localDay(),program=readServedProgram(day)
 if(!program?.races?.length)throw Error('Current program must be published first')
