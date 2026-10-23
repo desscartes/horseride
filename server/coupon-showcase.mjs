@@ -14,7 +14,9 @@ import {selectedMeetingCoupons} from './selected-meeting-coupons.mjs'
 export function meetingCouponShowcase(date,city,options={}){
  const races=readServedProgram(date)?.races||[],rows=selectedMeetingCoupons(races,date,city,applicationTickets(date),options)
  storeApplicationTickets(rows.map(row=>row.ticket).filter(Boolean))
- return {date,city,selectedMeetingCoupons:selectedMeetingCoupons(races,date,city,applicationTickets(date),options)}
+ let popularity={popularSocialCoupon:null,socialReason:'Bu şehir için yarış öncesinde doğrulanmış açık paylaşım bulunamadı.'}
+ try{const saved=JSON.parse(readFileSync(`data/social-coupons/${date}-${slug(city)}.json`,'utf8')),social=aggregateSocialCoupons(saved.records||[],races.filter(r=>r.city===city),date,city,options),coupon=social.coupons.filter(c=>!c.closed)[0];popularity={popularSocialCoupon:coupon||null,socialRankingLabel:social.rankingLabel,socialReason:coupon?null:social.unavailableReason,socialCollectedAt:saved.payload?.fetchedAt||null}}catch{}
+ return {date,city,selectedMeetingCoupons:selectedMeetingCoupons(races,date,city,applicationTickets(date),options),...popularity,socialScope:'Takip edilen açık paylaşımlar; gerçek oynanma adedi bilinmiyor.'}
 }
 const slug=v=>String(v).normalize('NFKD').replace(/\p{M}/gu,'').replace(/ı/g,'i').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')
 // Prefix dynamic programming: maximise coverage under the fixed budget. Required

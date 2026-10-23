@@ -40,7 +40,9 @@ component=replace(component,'children:t===`Tümü`?`Hipodromunu seç`:t','childr
 component=replace(component,'(0,j.jsx)(`div`,{className:`showcase-legs`','(0,j.jsx)(`p`,{className:`coupon-chance`,children:__couponChanceText(r.estimatedChance)}),(0,j.jsx)(`div`,{className:`showcase-legs`')
 component=replace(component,'İlk öneri kaydedilir; seçimler sabittir. Hesaplanan kapsam kazanma garantisi değildir.','Bu oyun ve bütçe için model puanlarıyla en yüksek kapsam seçilir. Yüzde, ayak kapsamlarının çarpımına dayanır; gerçek sonuçlarla kalibre edilmiş başarı oranı değildir. İlk öneri saklanır, çekilen atlar başlangıçtan önce yeniden doğrulanır.')
 component=replace(component,']},e)})})]})}',']},`${n.ordinal||0}-${e}`)})})]})}')
-component=replace(component,'(0,j.jsx)(`strong`,{children:e.horses.map(e=>e.number).join(` · `)})','(0,j.jsx)(`strong`,{children:e.horses.map(e=>e.number).join(` · `)}),(0,j.jsx)(`small`,{className:`coupon-leg-surprise`,title:e.surpriseSuggestion?.reason,children:__surpriseSuggestionText(e.surpriseSuggestion)})')
+component=replace(component,'(0,j.jsx)(`strong`,{children:e.horses.map(e=>e.number).join(` · `)})','(0,j.jsx)(`strong`,{children:e.horses.map(e=>e.number).join(` · `)}),(0,j.jsx)(`small`,{className:`coupon-leg-surprise`,title:e.surpriseSuggestion?.reason,children:__surpriseSuggestionText(e.surpriseSuggestion)}),(0,j.jsx)(`small`,{className:`coupon-leg-surprise`,children:e.selectionReason})')
+component=component.replace('function He(', 'function __BaseCityCoupons(')
+component+='function He(props){return (0,j.jsxs)(j.Fragment,{children:[(0,j.jsx)(__BaseCityCoupons,props),(0,j.jsx)(__SelectedSocial,{date:props.date,city:props.city})]})}'
 output=output.slice(0,start)+component+output.slice(end)
 output=replace(output,'},e.number))})]},`${e.number}-${t.raceNo}`)','},e.number))}),(0,j.jsx)(`small`,{className:`coupon-leg-surprise`,title:t.surpriseSuggestion?.reason,children:__surpriseSuggestionText(t.surpriseSuggestion,true)})]},`${e.number}-${t.raceNo}`)')
 output=replace(output,'if(n===2||!(e.retryable||e instanceof TypeError))throw e','if(n===2||!(e.retryable||e instanceof TypeError)){if(e instanceof TypeError)e.message=`Sunucuya ulaşılamadı. Bağlantı yeniden denenecek.`;throw e}')
@@ -50,6 +52,9 @@ output=replace(output,'className:`mobile-bottom-nav`,"aria-label":`Ana menü`,ch
 output=replace(output,'className:e===`report`?`nav-item active`:`nav-item`,onClick:()=>t(`report`)','className:e===`simulation`?`nav-item active`:`nav-item`,onClick:()=>t(`simulation`),children:`◇ Simülasyon`}),(0,j.jsxs)(`button`,{className:e===`report`?`nav-item active`:`nav-item`,onClick:()=>t(`report`)')
 output=replace(output,'children:e===`report`?`Uygulama raporu`','children:e===`simulation`?`Simülasyon`:e===`report`?`Uygulama raporu`')
 output=replace(output,'children:e===`report`?`Tahmin, ilk üç başarısı ve altılı sonuçları.`','children:e===`simulation`?`Modelin günlük sanal altılı seçimleri ve sonuçları.`:e===`report`?`Tahmin, ilk üç başarısı ve altılı sonuçları.`')
+const socialView=await read('src/data/selectedSocialView.js'),socialViewFile=`selected-social-${hash(socialView)}.js`
+output=`import {renderSelectedSocial as __renderSelectedSocial} from "./${socialViewFile}";\nfunction __SelectedSocial(props){return __renderSelectedSocial(s,T,props)}\n`+output
+await writeFile('dist/assets/'+socialViewFile,socialView)
 output='import {renderSimulation as __renderSimulation} from "./simulation-view-v1.js";\nfunction __Simulation(){return __renderSimulation(s,T)}\n'+output
 await copyFile('src/data/simulationView.js','dist/assets/simulation-view-v1.js')
 output='import {couponChanceText as __couponChanceText} from "./coupon-chance-v1.js";\nimport {legSurpriseSuggestion as __legSurpriseSuggestion,surpriseSuggestionText as __surpriseSuggestionText} from "./coupon-surprise-v2.js";\n'+output

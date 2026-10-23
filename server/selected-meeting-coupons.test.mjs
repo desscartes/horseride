@@ -52,3 +52,11 @@ test('a score change preserves a valid fixed ticket; a started invalid game cann
  const removed=races.map(r=>({...r,horses:[]}))
  for(const row of selectedMeetingCoupons(removed,date,'Ankara',saved,{now:'2026-10-18T08:00:00.000Z'})){assert.equal(row.ticket,null);assert.match(row.reason,/oyunu başladı/)}
 })
+
+test('unverified country scores explain missing trained model instead of generic unavailable',()=>{
+ const races=fixture().map(r=>({...r,city:'Fairview Guney Afrika',rankingSource:'program_baseline'}));for(const row of selectedMeetingCoupons(races,date,races[0].city,[],{now:before})){assert.equal(row.ticket,null);assert.match(row.reason,/doğrulanmış aktif model yok/)}
+})
+test('rider changes create a pre-start revision without rewriting the previous coupon',()=>{
+ const races=fixture().map(r=>({...r,horses:r.horses.map(h=>({...h,jockey:'OLD'}))})),saved=selectedMeetingCoupons(races,date,'Ankara',[],{now:before}).map(r=>r.ticket),original=JSON.stringify(saved),changed=races.map(r=>({...r,horses:r.horses.map(h=>({...h,jockey:'NEW'}))}))
+ const next=selectedMeetingCoupons(changed,date,'Ankara',saved,{now:later});assert.ok(next.every(r=>r.ticket?.supersedesTicketId));assert.equal(JSON.stringify(saved),original)
+})

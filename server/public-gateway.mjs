@@ -1,3 +1,4 @@
+import {readCouponResponse} from './coupon-response-cache.mjs'
 import {programWithJockeyEvidence} from './jockey-evidence.mjs'
 import {preparedOrEmergencyCommentary,supplementCommentary} from './commentary-fallback.mjs'
 import {fallbackProgram} from './program-fallback.mjs'
@@ -73,6 +74,7 @@ export function createPublicGateway({upstream='http://127.0.0.1:8788',root=defau
     if(![shiftDay(day,-1),day,shiftDay(day,1)].includes(date))return reply(400,{error:'Yalnızca dün, bugün ve yarın kullanılabilir.'})
     const city=url.searchParams.get('city')||'Tümü'
     if(city.length>80)return reply(400,{error:'Invalid city'})
+    if(url.pathname==='/api/coupon-showcase'){const prepared=await readCouponResponse(await programReader(date),date,city);if(prepared)return reply(200,prepared)}
     let commentaryProgram=null,commentaryBackup=null
     if(url.pathname==='/api/analysis/daily')try{commentaryProgram=await programWithJockeyEvidence(await programReader(date));commentaryBackup=await preparedOrEmergencyCommentary(commentaryProgram,date,city)}catch{}
     const target=new URL(url.pathname,upstream)
