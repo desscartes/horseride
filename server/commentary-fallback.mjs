@@ -1,5 +1,5 @@
 import {jockeyComment} from './jockey-evidence.mjs'
-import {baselineSelectionReason} from './commentary-evidence.mjs'
+import {preparationHorseReason,baselineSelectionReason} from './commentary-evidence.mjs'
 import {createHash} from 'node:crypto'
 import {readFile} from 'node:fs/promises'
 import {fileURLToPath} from 'node:url'
@@ -14,6 +14,10 @@ export function emergencyCommentary(program,date,city,{now=new Date()}={}){
  return {date,city,sourceFingerprint:commentaryFingerprint(program,date,city),createdAt:now.toISOString(),cached:true,available:true,source:'automatic_verified_data_summary',analysisIsHistoricalForecast:false,programFetchedAt:program.fetchedAt,analysis}
 }
 export function supplementCommentary(current,fallback,program,date,city){
+ if(current?.date===date&&current?.city===city&&current.analysis?.races){
+ const races=current.analysis.races.map(pred=>{const race=program?.races?.find(r=>r.city===city&&Number(r.no)===Number(pred.raceNo));if(!race||Date.parse(raceStartISO(race,date))<=Date.now())return pred;let changed=false;const picks=(pred.picks||[]).map(p=>{const h=race.horses.find(h=>h.name===p.horseName&&!h.outOfRace);if(!h||!p.reason?.includes('Doğrulanmış yarış geçmişi sınırlı olduğu için'))return p;changed=true;return {...p,reason:preparationHorseReason(race,h,date)}});return changed?{...pred,picks}:pred});if(races.some((r,i)=>r!==current.analysis.races[i]))current={...current,analysis:{...current.analysis,races}}
+ }
+
  if(current?.date===date&&current?.city===city&&current.analysis?.races&&(program?.races||[]).some(r=>r.city===city&&Date.parse(raceStartISO(r,date))>Date.now()&&r.horses.some(h=>h.jockeyPerformance?.source==='dated_verified_archive_results'))){
   current={...current,analysis:{...current.analysis,races:current.analysis.races.map(pred=>{
    const race=program.races.find(r=>r.city===city&&Number(r.no)===Number(pred.raceNo));if(!race||Date.parse(raceStartISO(race,date))<=Date.now())return pred

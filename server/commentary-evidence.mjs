@@ -1,3 +1,4 @@
+import {workoutTime} from './environment-features.mjs'
 import {jockeyComment} from './jockey-evidence.mjs'
 import {surpriseCandidates} from '../src/data/surprisePolicy.js'
 import {parseWeight} from './data-quality.mjs'
@@ -62,6 +63,7 @@ export function evidenceSurprise(race,picks,date,{allowedNames}={}){
 }
 export function baselineSelectionReason(race,horse,rival){
  if(race.rankingSource!=='program_baseline')return null
+ if(horse.australianEvidence?.career?.starts===0||(!String(horse.lastSix||'').match(/[1-9]/)&&!(horse.horsePerformance?.recentRuns?.length)&&!positive(horse.horsePerformance?.sameDistanceAndSurface?.starts)))return null
  const digits=h=>(String(h.lastSix||'').match(/[0-9]/g)||[]).slice(-6)
  const form=h=>{const ds=digits(h);return ds.length?ds.reduce((s,v)=>s+(v==='0'?0.15:Math.max(.1,1-(Number(v)-1)*.16)),0)/ds.length:.5}
  const weights=race.horses.map(h=>parseWeight(h.weight)).filter(v=>v>0),min=Math.min(...weights)
@@ -79,11 +81,25 @@ export function baselineSelectionReason(race,horse,rival){
  lines.push('Bu sıralama sonuç dizisi ve program bilgilerini puanlıyor; yarışların sınıfı, rakip gücü ve koşu içi şartları doğrulanmadan performans üstünlüğü ya da kazanma olasılığı olarak yorumlanamaz.')
  return lines.join(' ')
 }
+export function preparationHorseReason(race,horse,date,rival){
+ const verified=horse.australianEvidence?.career?.starts===0,lines=[verified?'Resmî kariyer kaydına göre ilk startına çıkıyor; değerlendirme yarış sonucu yerine hazırlık verilerine dayanıyor.':'Bu açıklamada doğrulanmış önceki yarış sonucu bulunmuyor; bu durum tek başına ilk start olduğunu göstermez. Hazırlık ve program bilgileri üzerinden değerlendiriliyor.']
+ const target=Date.parse(date+'T12:00:00Z'),rows=[...new Map((horse.workouts||[]).filter(w=>{const day=w.dateISO||w.date;return /^\d{4}-\d{2}-\d{2}$/.test(day)&&day<date&&target-Date.parse(day+'T12:00:00Z')<=30*86400000}).map(w=>[JSON.stringify([w.dateISO||w.date,w.hippodrome,w.splits]),w])).values()].sort((a,b)=>(b.dateISO||b.date).localeCompare(a.dateISO||a.date))
+ if(rows.length){const last=rows[0],splits=[400,800,1000].map(d=>{const value=workoutTime(last.splits?.[String(d)],d);return value!=null?`${d} metre ${tr(value)} saniye`:null}).filter(Boolean);lines.push(`Son 30 günde ${rows.length} kayıtlı idmanı var. En son ${last.dateISO||last.date}${last.hippodrome?' '+last.hippodrome:''}${last.surface?' '+last.surface+' pistte':''} çalışmış${splits.length?'; kayıtlı ara dereceler: '+splits.join(', '):''}.`);lines.push('İdman şiddeti ve zemin aynı şekilde ölçülmediği için bu dereceler tek başına rakiplerinden daha hazır olduğunu kanıtlamaz.')}
+ else lines.push('Doğrulanmış son 30 günlük idman ayrıntısı bu açıklamada yok; hazırlığı hakkında olumlu veya olumsuz hüküm verilemiyor.')
+ const trials=(horse.trialEvidence||[]).filter(t=>t.date<date&&Number(t.finishPosition)>0).sort((a,b)=>b.date.localeCompare(a.date))
+ if(trials.length){const t=trials[0];lines.push(`Son resmî denemesi ${t.date}${Number(t.distance)>0?' '+t.distance+' metre':''}: ${t.finishPosition}. bitiriş${Number(t.fieldSize)>0?' / '+t.fieldSize+' at':''}. Deneme sonucu yarış performansıyla aynı ölçüm değildir.`)}
+ if(horse.sire||horse.dam)lines.push(`Soy bilgisi:${horse.sire?' baba '+horse.sire:''}${horse.dam?', anne '+horse.dam:''}. Yalnız ebeveyn adına bakarak pist veya mesafe üstünlüğü çıkarılmıyor.`)
+ const weight=parseWeight(horse.weight);if(weight>0)lines.push(`Bugün ${tr(weight)} kilo${positive(horse.start)?', '+horse.start+'. start yerinden':''} koşacak.`)
+ const jockey=jockeyComment(horse,date,rival);if(jockey)lines.push(jockey)
+ lines.push('İlk sıralarda bulunması, henüz ölçülmüş bir yarış üstünlüğü değildir; ilk start öncesi güveni hazırlık kanıtının kapsamıyla sınırlı tutulur.')
+ return lines.join(' ')
+}
 export function fluentHorseReason(race,horse,date,rival){
+ if(horse.australianEvidence?.career?.starts===0||(!recentEvidenceRuns(horse,date).length&&!positive(horse.horsePerformance?.sameDistanceAndSurface?.starts)&&!String(horse.lastSix||'').match(/[1-9]/)))return preparationHorseReason(race,horse,date,rival)
  const baseline=baselineSelectionReason(race,horse,rival);if(baseline)return [baseline,jockeyComment(horse,date,rival)].filter(Boolean).join(' ')
  const runs=recentEvidenceRuns(horse,date),last=runs[0],same=horse.horsePerformance?.sameDistanceAndSurface,load=recentLoadEvidence(runs,horse.workouts||[],horse,race,date),lines=[]
  const maiden=maidenEvidence(race,horse,date)
- if(horse.australianEvidence?.career?.starts===0)return [detailedHorseChoices(race,horse,date).form[0],maiden?.text,'İlk yarışında bugünkü rakipleriyle karşılaştırılabilecek bir yarış performansı henüz oluşmadı.',jockeyComment(horse,date,rival)].filter(Boolean).join(' ')
+ if(horse.australianEvidence?.career?.starts===0)return preparationHorseReason(race,horse,date,rival)
  if(last)lines.push(`Son kayıtlı yarışında ${last.distance?last.distance+' metre ':''}${last.surface?last.surface+' pistte ':''}${last.finishPosition}. olması${last.finishPosition<=3?' yakın dönem formunu destekliyor':' nedeniyle güncel formunu yeniden göstermesi gerekiyor'}.`)
  if(positive(same?.starts))lines.push(`Bugünkü pistte ve yakın mesafelerdeki ${same.starts} kayıtlı koşuda ${num(same.wins)||0} galibiyet${num(same.topThree)!=null?' ve '+same.topThree+' ilk üç derecesi':''} bulunuyor${same.starts<3?'; bu karşılaştırma henüz dar bir örneğe dayanıyor':''}.`)
  const other=rival?.horsePerformance?.sameDistanceAndSurface

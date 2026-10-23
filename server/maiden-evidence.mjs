@@ -11,11 +11,11 @@ export function maidenEvidence(race,horse,date){
  const maiden=past.filter(r=>raceClass({city:r.city||race.city,type:r.className||r.type||''}).family.startsWith('maiden'))
  const nearMisses=maiden.filter(r=>Number(r.finishPosition)===2).length
  const improving=recent.length>=3&&Number(recent[0].finishPosition)<Number(recent[1].finishPosition)&&Number(recent[1].finishPosition)<Number(recent[2].finishPosition)
- const lines=[`Maiden değerlendirmesi: doğrulanmış geçmişte ${maiden.length} maiden startı ve bu koşularda ${nearMisses} ikincilik var.`]
+ const lines=[past.length?`Maiden değerlendirmesi: doğrulanmış geçmişte ${maiden.length} maiden startı ve bu koşularda ${nearMisses} ikincilik var.`:'Önceki yarış sonucu doğrulanmadığı için değerlendirme hazırlık, soy ve jokey bilgileri üzerinden yapılmalı; boş yarış geçmişi olumsuz form göstergesi değildir.']
  if(wins)lines.push('Geçmişte galibiyet kaydı bulundu; maiden uygunluğu ve at eşleştirmesi resmî koşu şartlarından kontrol edilmeli.')
  else if(nearMisses||improving)lines.push(`${improving?'Son üç kayıtlı yarışında bitiriş sırası iyileşmiş. ':''}${nearMisses?'Maiden ikincilikleri rekabet edebildiğini gösteriyor. ':''}Bu bulgular ilk galibiyet adayı olarak incelenmesini destekler; bugün kazanması gerektiği anlamına gelmez.`)
  else if(horse.australianEvidence?.career?.starts===0)lines.push('Resmî kayda göre ilk startına çıkıyor; geçmiş maiden sonucu olmaması veri toplama hatası veya olumsuz form değildir.')
- else lines.push('Mevcut sonuçlar ilk galibiyet için belirgin bir gelişim kanıtı sunmuyor; ilk kez koşan atlar yalnız sonuç geçmişiyle elenemez.')
+ else if(past.length)lines.push('Mevcut sonuçlar ilk galibiyet için belirgin bir gelişim kanıtı sunmuyor; ilk kez koşan atlar yalnız sonuç geçmişiyle elenemez.')
  const target=Date.parse(`${date}T12:00:00Z`),norm=v=>String(v||'').normalize('NFKD').replace(/\p{M}/gu,'').toLowerCase().replace(/ı/g,'i').trim()
  const workouts=(horse.workouts||[]).filter(w=>{const age=(target-Date.parse(`${w.dateISO}T12:00:00Z`))/86400000;return age>0&&age<=30})
  const seen=new Set(),timed=workouts.filter(w=>{
