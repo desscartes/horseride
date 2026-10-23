@@ -1,3 +1,4 @@
+import {workoutComment} from './workout-evidence.mjs'
 import {workoutTime} from './environment-features.mjs'
 import {jockeyComment} from './jockey-evidence.mjs'
 import {surpriseCandidates} from '../src/data/surprisePolicy.js'
@@ -84,20 +85,18 @@ export function baselineSelectionReason(race,horse,rival){
 export function preparationHorseReason(race,horse,date,rival){
  const verified=horse.australianEvidence?.career?.starts===0,lines=[verified?'Resmî kariyer kaydına göre ilk startına çıkıyor; değerlendirme yarış sonucu yerine hazırlık verilerine dayanıyor.':'Bu açıklamada doğrulanmış önceki yarış sonucu bulunmuyor; bu durum tek başına ilk start olduğunu göstermez. Hazırlık ve program bilgileri üzerinden değerlendiriliyor.']
  const formDigits=(String(horse.lastSix||'').match(/[0-9]/g)||[]).slice(-6);if(formDigits.length)lines.push(`Programdaki son ${formDigits.length} sonuç hanesinde ${formDigits.filter(x=>x==='1').length} galibiyet, ${formDigits.filter(x=>Number(x)>0&&Number(x)<=3).length} ilk üç sonucu var (kayıt: ${horse.lastSix}); yarışların tarih ve sınıf ayrıntıları bu özette doğrulanamıyor.`)
- const target=Date.parse(date+'T12:00:00Z'),rows=[...new Map((horse.workouts||[]).filter(w=>{const day=w.dateISO||w.date;return /^\d{4}-\d{2}-\d{2}$/.test(day)&&day<date&&target-Date.parse(day+'T12:00:00Z')<=30*86400000}).map(w=>[JSON.stringify([w.dateISO||w.date,w.hippodrome,w.splits]),w])).values()].sort((a,b)=>(b.dateISO||b.date).localeCompare(a.dateISO||a.date))
- if(rows.length){const last=rows[0],splits=[400,800,1000].map(d=>{const value=workoutTime(last.splits?.[String(d)],d);return value!=null?`${d} metre ${tr(value)} saniye`:null}).filter(Boolean);lines.push(`Son 30 günde ${rows.length} kayıtlı idmanı var. En son ${last.dateISO||last.date}${last.hippodrome?' '+last.hippodrome:''}${last.surface?' '+last.surface+' pistte':''} çalışmış${splits.length?'; kayıtlı ara dereceler: '+splits.join(', '):''}.`);lines.push('İdman şiddeti ve zemin aynı şekilde ölçülmediği için bu dereceler tek başına rakiplerinden daha hazır olduğunu kanıtlamaz.')}
- else lines.push('Doğrulanmış son 30 günlük idman ayrıntısı bu açıklamada yok; hazırlığı hakkında olumlu veya olumsuz hüküm verilemiyor.')
+ lines.push(workoutComment(race,horse,date))
  const trials=(horse.trialEvidence||[]).filter(t=>t.date<date&&Number(t.finishPosition)>0).sort((a,b)=>b.date.localeCompare(a.date))
  if(trials.length){const t=trials[0];lines.push(`Son resmî denemesi ${t.date}${Number(t.distance)>0?' '+t.distance+' metre':''}: ${t.finishPosition}. bitiriş${Number(t.fieldSize)>0?' / '+t.fieldSize+' at':''}. Deneme sonucu yarış performansıyla aynı ölçüm değildir.`)}
  if(horse.sire||horse.dam)lines.push(`Soy bilgisi:${horse.sire?' baba '+horse.sire:''}${horse.dam?', anne '+horse.dam:''}. Yalnız ebeveyn adına bakarak pist veya mesafe üstünlüğü çıkarılmıyor.`)
  const weight=parseWeight(horse.weight);if(weight>0)lines.push(`Bugün ${tr(weight)} kilo${positive(horse.start)?', '+horse.start+'. start yerinden':''} koşacak.`)
  const jockey=jockeyComment(horse,date,rival);if(jockey)lines.push(jockey)
- lines.push('İlk sıralarda bulunması, henüz ölçülmüş bir yarış üstünlüğü değildir; ilk start öncesi güveni hazırlık kanıtının kapsamıyla sınırlı tutulur.')
+ lines.push('İlk sıralarda bulunması, henüz ölçülmüş bir yarış üstünlüğü değildir; bu değerlendirmeye güven, mevcut kanıtın kapsamıyla sınırlı tutulur.')
  return lines.join(' ')
 }
 export function fluentHorseReason(race,horse,date,rival){
  if(horse.australianEvidence?.career?.starts===0||(!recentEvidenceRuns(horse,date).length&&!positive(horse.horsePerformance?.sameDistanceAndSurface?.starts)&&!String(horse.lastSix||'').match(/[1-9]/)))return preparationHorseReason(race,horse,date,rival)
- const baseline=baselineSelectionReason(race,horse,rival);if(baseline)return [baseline,jockeyComment(horse,date,rival)].filter(Boolean).join(' ')
+ const baseline=baselineSelectionReason(race,horse,rival);if(baseline)return [baseline,workoutComment(race,horse,date),jockeyComment(horse,date,rival)].filter(Boolean).join(' ')
  const runs=recentEvidenceRuns(horse,date),last=runs[0],same=horse.horsePerformance?.sameDistanceAndSurface,load=recentLoadEvidence(runs,horse.workouts||[],horse,race,date),lines=[]
  const maiden=maidenEvidence(race,horse,date)
  if(horse.australianEvidence?.career?.starts===0)return preparationHorseReason(race,horse,date,rival)
@@ -111,7 +110,7 @@ export function fluentHorseReason(race,horse,date,rival){
  if(maiden)lines.push(maiden.text)
  if(!last&&!positive(same?.starts))return preparationHorseReason(race,horse,date,rival)
  else if(lines.length<3)lines.push('Bu kayıtlar bugünkü rakiplerin tamamına karşı nasıl koşacağını tek başına belirlemiyor.')
- return [...lines,jockeyComment(horse,date,rival)].filter(Boolean).join(' ')
+ return [...lines,workoutComment(race,horse,date),jockeyComment(horse,date,rival)].filter(Boolean).join(' ')
 }
 export function commentaryModelCaution(race,prediction){
  const country=racingCountry(race.city)
@@ -120,7 +119,7 @@ export function commentaryModelCaution(race,prediction){
  return {confidence:'low',risks:[...new Set([...(prediction.risks||[]),`${label} için doğrulanmış etkin model yok; sıralama program puanlamasına dayanıyor.`])]}
 }
 export function enrichCommentaryRace(race,prediction,date){
- const picks=prediction.picks.map(p=>{const horse=race.horses.find(h=>h.name===p.horseName);if(!horse)return p;const rival=prediction.picks.map(p=>race.horses.find(h=>h.name===p.horseName)).find(h=>h&&!h.outOfRace&&h.name!==horse.name);return {...p,reason:fluentHorseReason(race,horse,date,rival)}})
+ const picks=prediction.picks.map(p=>{const horse=race.horses.find(h=>h.name===p.horseName);if(!horse)return p;const rival=prediction.picks.map(p=>race.horses.find(h=>h.name===p.horseName)).find(h=>h&&!h.outOfRace&&h.name!==horse.name);return {...p,reason:fluentHorseReason(race,horse,date,rival),workoutExplanationText:workoutComment(race,horse,date)}})
  const allowed=Array.isArray(race.surpriseCandidates)?race.surpriseCandidates:surpriseCandidates(race,picks)
  const surprise=evidenceSurprise(race,picks,date,{allowedNames:allowed}),hasAgf=race.surpriseAgfAvailable??(race.horses.every(h=>typeof h.marketShare==='number'&&h.marketShare>=0)&&race.horses.some(h=>h.marketShare>0))
  const reason=surprise?'AGF favorileri dışındaki aday, doğrulanmış yarış kayıtlarıyla destekleniyor.':!hasAgf?'AGF verisi eksik olduğu için favori dışı sürpriz etiketi doğrulanamıyor.':`${allowed.length} favori dışı aday incelendi; mevcut pist/mesafe ve yakın dönem form kayıtları sürpriz seçimi için yeterli olumlu kanıt sunmuyor.`

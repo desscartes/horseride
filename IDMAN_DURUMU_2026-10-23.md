@@ -1,0 +1,9 @@
+
+## 23 Ekim — idmanın gerçek kullanımı ve yorumlara aktarımı
+- Aktif TR_v4 modelinde 15 idman alanı seçili, 10 alan gerçek ağaç bölünmelerinde kullanılıyor. Aktif US_v3 modelinde seçili idman alanı yok. Şema varlığı model kullanımı sayılmaz; audit-workout-usage bunu ayrı raporlar.
+- Bugün aktif TR194/186, US285/223 at için son90gün geçerli tarih/kimlikli idman var. TR8/US62 eksik; AU66/GB91/ZA141 için kayıt yok. Tam kapsam veya başarı artışı iddiası yok. Son TR kaynak denemesinde2timeout/1doğrulanmış kayıt yok.
+- workout-evidence tarih/kimlik/tekilleştirme/sicil kontrolüyle30/14gün sayılarını, tarih/pist/ara dereceyi; ABD tam mesafe+saniye+grup sırasını açıklar. Furlong toplamı400/1000ara dereceye çevrilmez. Kaynakta yokluk hazırlıksızlık değildir. Normal koşanlar da bu açıklamayı alır; salt maiden/ilkstart ile sınırlı değil.
+- Yanıt katmanı yalnız başlamamış yarışta idman notunu günceller; sıralama/olasılık/eski tahmin değiştirilmez. DışHTTPS KeenelandSOCCERSOCKS804.7m49.8s11/14 veGHAZAALY603.5m39.4s7/7 doğrulandı.50gelecek yarışın yorumcache hazır. APK gerekmez.
+- Eksik idman toplayıcısı artık bayat/yanlış kimlikli kaydı tamam saymaz. Günlük kullanım/kapsam denetimi sabah ve06:15/10:15/14:15/18:15/22:15'e bağlı. Mevcut TR/US kaynak toplama işleri korunur, ikinci paralel iş açılmaz.
+- ABD dondurulmuş araştırma11249koşu/2318at kaydına eşleşme buldu; fakat eski fit5121koşuda idmanlı at0, validation708koşuda158. Değişken idman girdisi yok. validation-report phase blocked_insufficient_historical_workouts: aynı modeli iki kez eğitip katkı uydurulmaz. Günlük sabah aday denetimi eklendi; yeterli tarihçe birikmeden başarı katkısı ölçülemez, aktifmodel korunur.
+- Açık: TR8/US62 güncel kayıt boşluğu; ücretsiz erişilebilen tarihsel ABD idmanları; AU/GB/ZA kaynak kapsamı ve doğrulanmış ülke modelleri. Bunlar tamamlandı diye kapatılmadı. Yeni idman adayında bağımsız değerlendirme ve tam canlı/eğitim eşitliği koşulları geçerlidir.

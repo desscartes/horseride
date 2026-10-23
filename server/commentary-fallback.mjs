@@ -1,3 +1,4 @@
+import {workoutComment} from './workout-evidence.mjs'
 import {analysisEntryFingerprint} from './analysis-entry-policy.mjs'
 import {jockeyComment} from './jockey-evidence.mjs'
 import {preparationHorseReason,baselineSelectionReason} from './commentary-evidence.mjs'
@@ -6,7 +7,7 @@ import {readFile} from 'node:fs/promises'
 import {fileURLToPath} from 'node:url'
 import {localEvidenceAnalysis} from './local-analysis.mjs'
 import {raceStartISO} from './preparation-readiness.mjs'
-export const commentaryFingerprint=(program,date,city)=>createHash('sha256').update(JSON.stringify({explanationRevision:'dated-jockey-entry-v2',date,city,races:(program?.races||[]).filter(r=>r.city===city)})).digest('hex')
+export const commentaryFingerprint=(program,date,city)=>createHash('sha256').update(JSON.stringify({explanationRevision:'dated-workout-v1',date,city,races:(program?.races||[]).filter(r=>r.city===city)})).digest('hex')
 export function emergencyCommentary(program,date,city,{now=new Date()}={}){
  if(program?.date!==date||!Array.isArray(program.races))return null
  const races=program.races.filter(r=>r.city===city&&Date.parse(raceStartISO(r,date))>+now).map(r=>{const horses=r.horses.filter(h=>!h.outOfRace),allowed=new Set(horses.map(h=>h.name));return {...r,horses,analysisCandidates:(r.analysisCandidates||horses.slice(0,4).map(h=>h.name)).filter(n=>allowed.has(n))}}).filter(r=>r.horses.length)
@@ -15,6 +16,8 @@ export function emergencyCommentary(program,date,city,{now=new Date()}={}){
  return {date,city,sourceFingerprint:commentaryFingerprint(program,date,city),createdAt:now.toISOString(),cached:true,available:true,source:'automatic_verified_data_summary',analysisIsHistoricalForecast:false,programFetchedAt:program.fetchedAt,analysis}
 }
 export function supplementCommentary(current,fallback,program,date,city){
+ if(current?.date===date&&current?.city===city&&current.analysis?.races&&(program?.races||[]).some(r=>r.city===city&&Date.parse(raceStartISO(r,date))>Date.now()&&r.horses.some(h=>h.workouts?.length))){const races=current.analysis.races.map(pred=>{const r=program?.races?.find(r=>r.city===city&&Number(r.no)===Number(pred.raceNo));if(!r||Date.parse(raceStartISO(r,date))<=Date.now())return pred;return {...pred,picks:(pred.picks||[]).map(p=>{const h=r.horses.find(h=>h.name===p.horseName&&!h.outOfRace);if(!h?.workouts?.length)return p;const text=workoutComment(r,h,date);const original=p.workoutExplanationText?(p.reason||'').replace(p.workoutExplanationText,'').trim():(p.reason||'');return {...p,reason:original.includes(text)?original:[original,text].filter(Boolean).join(' '),workoutExplanationText:text,workoutExplanationRevision:'dated-workout-v1'}})}});current={...current,analysis:{...current.analysis,races}}}
+
  if(current?.date===date&&current?.city===city&&current.analysis?.races){
  const races=current.analysis.races.map(pred=>{const race=program?.races?.find(r=>r.city===city&&Number(r.no)===Number(pred.raceNo));if(!race||Date.parse(raceStartISO(race,date))<=Date.now())return pred;let changed=false;const picks=(pred.picks||[]).map(p=>{const h=race.horses.find(h=>h.name===p.horseName&&!h.outOfRace);if(!h||!p.reason?.includes('Doğrulanmış yarış geçmişi sınırlı olduğu için'))return p;changed=true;return {...p,reason:preparationHorseReason(race,h,date)}});return changed?{...pred,picks}:pred});if(races.some((r,i)=>r!==current.analysis.races[i]))current={...current,analysis:{...current.analysis,races}}
  }
@@ -30,7 +33,7 @@ export function supplementCommentary(current,fallback,program,date,city){
   current={...current,analysis:{...current.analysis,races:current.analysis.races.map(pred=>{
    const race=program?.races?.find(r=>r.city===city&&Number(r.no)===Number(pred.raceNo))
    if(!race||race.rankingSource!=='program_baseline'||Date.parse(raceStartISO(race,date))<=Date.now())return pred
-   return {...pred,explanationRevision:'program-comparison-v1',picks:(pred.picks||[]).map(p=>{const horse=race.horses.find(h=>h.name===p.horseName&&!h.outOfRace),rival=(pred.picks||[]).map(x=>race.horses.find(h=>h.name===x.horseName&&!h.outOfRace)).find(h=>h&&h.name!==p.horseName);const baseline=horse&&baselineSelectionReason(race,horse,rival);const reason=baseline&&[baseline,jockeyComment(horse,date,rival)].filter(Boolean).join(' ');return reason?{...p,reason}:p})}
+   return {...pred,explanationRevision:'program-comparison-v1',picks:(pred.picks||[]).map(p=>{const horse=race.horses.find(h=>h.name===p.horseName&&!h.outOfRace),rival=(pred.picks||[]).map(x=>race.horses.find(h=>h.name===x.horseName&&!h.outOfRace)).find(h=>h&&h.name!==p.horseName);const baseline=horse&&baselineSelectionReason(race,horse,rival);const reason=baseline&&[baseline,workoutComment(race,horse,date),jockeyComment(horse,date,rival)].filter(Boolean).join(' ');return reason?{...p,reason}:p})}
   })}}
  }
  if(!fallback)return current

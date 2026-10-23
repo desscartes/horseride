@@ -13,3 +13,11 @@ test('rider changes invalidate a ready comment even when horse names stay identi
  assert.doesNotMatch(result.analysis.races[0].picks[0].reason,/Eski jokey J ile üstün/);assert.match(result.analysis.races[0].picks[0].reason,/NEW RIDER/)
  assert.equal(result.analysis.entryFingerprints[5],analysisEntryFingerprint(updated.races))
 })
+
+
+test('workout response refresh replaces its old note and preserves started forecasts',()=>{
+ const day='2099-10-22',city='Keeneland ABD',work={horseName:'A',dateISO:'2099-10-20',splits:{400:'0.26.20'}},program={date:day,races:[{city,no:1,time:'23:59',surface:'Kum',horses:[{name:'A',workouts:[work]}]}]}
+ const old={date:day,city,analysis:{races:[{city,raceNo:1,picks:[{horseName:'A',reason:'Evidence. old note',workoutExplanationText:'old note'}]}]}}
+ const result=supplementCommentary(old,null,program,day,city);const pick=result.analysis.races[0].picks[0];assert.doesNotMatch(pick.reason,/old note/);assert.match(pick.reason,/26,2/);assert.equal(supplementCommentary(result,null,program,day,city).analysis.races[0].picks[0].reason,pick.reason)
+ const past={...old,date:'2020-10-22'};assert.equal(supplementCommentary(past,null,{...program,date:past.date,races:program.races.map(r=>({...r,time:'00:01'}))},past.date,city),past)
+})

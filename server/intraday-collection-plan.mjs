@@ -9,6 +9,7 @@ export function collectionPlan(day){
   if(hour>=5){add(`pedigree-${h}`,`${h}:30`,'server/collect-tjk-pedigree.mjs',[],{PEDIGREE_COUNTRIES:'TR,US',PEDIGREE_BATCH_SIZE:'50',PEDIGREE_CURRENT_ONLY:'1'});add(`workouts-${h}`,`${h}:45`,'server/collect-current-missing-workouts.mjs')}
  }
  for(const h of ['06','10','14','18','22'])add(`us-workouts-${h}`,`${h}:00`,'server/collect-equibase-workouts.mjs')
+ for(const h of ['06','10','14','18','22'])add(`workout-usage-${h}`,`${h}:15`,'server/audit-workout-usage.mjs',[day])
  for(const h of ['06','10','18'])add(`gap-audit-${h}`,`${h}:30`,'server/audit-current-runner-gaps.mjs',[day])
  for(const h of ['06','08','10','12','14','16','18','20','22'])add(`readiness-${h}`,`${h}:45`,'server/audit-preparation-readiness.mjs',[day])
  return jobs.sort((a,b)=>a.time.localeCompare(b.time)||a.id.localeCompare(b.id))

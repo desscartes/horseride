@@ -31,6 +31,7 @@ try{
  await stage('current_workouts',()=>run('server/collect-current-missing-workouts.mjs'))
  await stage('us_workouts',()=>run('server/collect-equibase-workouts.mjs'))
  await stage('program',()=>run('server/program-refresh.mjs',[day]))
+ await stage('workout_usage',()=>run('server/audit-workout-usage.mjs',[day]))
  await stage('coverage',async()=>{await run('server/audit-country-evidence.mjs');const audit=await json(directory+'/country-evidence-audit.json');report.coverage=Object.fromEntries(Object.entries(audit.countries).filter(([,r])=>r.date===day).map(([country,r])=>[country,{runners:r.runners,missing:Object.fromEntries(['damsire','history','workout','ownTimedRun','trackCondition'].map(k=>[k,r.runners-r.counts[k]]))}]));report.dataComplete=Object.values(report.coverage).every(r=>Object.values(r.missing).every(n=>n===0))})
  // Reuse existing forecasts; never delete old predictions to manufacture a better record.
  await stage('runner_gaps',()=>run('server/audit-current-runner-gaps.mjs',[day]))
@@ -46,6 +47,7 @@ try{
  // Publish explanations from the verified serving model before lengthy candidate fitting.
  await stage('training',async()=>{const root=`data/intelligence-models/${day}/morning`;let done;try{done=await json(root+'/training-state.json')}catch{}if(done?.phase!=='complete')await run('server/run-intelligence-training.mjs',[root],{RACE_PRIZE_REGISTRY_PATH:'data/external/race-prizes/records.json'});report.trainingReport=root+'/training-report.json'})
  await stage('jockey_candidate_comparison',()=>run('server/run-jockey-research.mjs',[`data/intelligence-models/${day}/morning`,`data/experiments/jockey-${day}-morning`]))
+ await stage('workout_candidate_comparison',()=>run('server/run-workout-research.mjs',[`data/intelligence-models/${day}/morning`,`data/experiments/us-workout-${day}-morning`]))
  await stage('training_input_coverage',()=>run('server/audit-training-evidence.mjs',[`data/intelligence-models/${day}/morning`]))
  report.phase=Object.values(report.stages).some(s=>s.status==='failed')?'partial':'complete';report.finishedAt=new Date().toISOString();await save();console.log(JSON.stringify(report));if(report.phase==='partial')process.exitCode=1
 }finally{await unlink(lock).catch(()=>{})}

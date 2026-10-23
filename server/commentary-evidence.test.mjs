@@ -26,6 +26,6 @@ test('baseline explanation compares actual card facts without inventing career o
 
 test('unraced explanations use dated preparation facts and never treat missing history as poor form',()=>{
  const race={surface:'Kum',distance:1200,horses:[]},h={name:'X',sire:'SIRE',dam:'DAM',weight:56,start:2,workouts:[{dateISO:'2026-10-20',hippodrome:'İzmir',surface:'Kum',splits:{400:'25.0'}},{dateISO:'2026-10-23',splits:{400:'20.0'}}]}
- const text=fluentHorseReason(race,h,'2026-10-23');assert.match(text,/1 kayıtlı idmanı/);assert.match(text,/baba SIRE, anne DAM/);assert.doesNotMatch(text,/gelişim kanıtı sunmuyor|2026-10-23|20 saniye|form ve pist uyumu hakkında güçlü/)
+ const text=fluentHorseReason(race,h,'2026-10-23');assert.match(text,/son 30 günde 1, son 14 günde 1 idmanı/);assert.match(text,/baba SIRE, anne DAM/);assert.doesNotMatch(text,/gelişim kanıtı sunmuyor|2026-10-23|20 saniye|form ve pist uyumu hakkında güçlü/)
  const debut=fluentHorseReason(race,{...h,australianEvidence:{career:{starts:0}}},'2026-10-23');assert.match(debut,/ilk startına çıkıyor/)
 })
