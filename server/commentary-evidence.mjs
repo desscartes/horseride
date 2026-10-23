@@ -83,6 +83,7 @@ export function baselineSelectionReason(race,horse,rival){
 }
 export function preparationHorseReason(race,horse,date,rival){
  const verified=horse.australianEvidence?.career?.starts===0,lines=[verified?'Resmî kariyer kaydına göre ilk startına çıkıyor; değerlendirme yarış sonucu yerine hazırlık verilerine dayanıyor.':'Bu açıklamada doğrulanmış önceki yarış sonucu bulunmuyor; bu durum tek başına ilk start olduğunu göstermez. Hazırlık ve program bilgileri üzerinden değerlendiriliyor.']
+ const formDigits=(String(horse.lastSix||'').match(/[0-9]/g)||[]).slice(-6);if(formDigits.length)lines.push(`Programdaki son ${formDigits.length} sonuç hanesinde ${formDigits.filter(x=>x==='1').length} galibiyet, ${formDigits.filter(x=>Number(x)>0&&Number(x)<=3).length} ilk üç sonucu var (kayıt: ${horse.lastSix}); yarışların tarih ve sınıf ayrıntıları bu özette doğrulanamıyor.`)
  const target=Date.parse(date+'T12:00:00Z'),rows=[...new Map((horse.workouts||[]).filter(w=>{const day=w.dateISO||w.date;return /^\d{4}-\d{2}-\d{2}$/.test(day)&&day<date&&target-Date.parse(day+'T12:00:00Z')<=30*86400000}).map(w=>[JSON.stringify([w.dateISO||w.date,w.hippodrome,w.splits]),w])).values()].sort((a,b)=>(b.dateISO||b.date).localeCompare(a.dateISO||a.date))
  if(rows.length){const last=rows[0],splits=[400,800,1000].map(d=>{const value=workoutTime(last.splits?.[String(d)],d);return value!=null?`${d} metre ${tr(value)} saniye`:null}).filter(Boolean);lines.push(`Son 30 günde ${rows.length} kayıtlı idmanı var. En son ${last.dateISO||last.date}${last.hippodrome?' '+last.hippodrome:''}${last.surface?' '+last.surface+' pistte':''} çalışmış${splits.length?'; kayıtlı ara dereceler: '+splits.join(', '):''}.`);lines.push('İdman şiddeti ve zemin aynı şekilde ölçülmediği için bu dereceler tek başına rakiplerinden daha hazır olduğunu kanıtlamaz.')}
  else lines.push('Doğrulanmış son 30 günlük idman ayrıntısı bu açıklamada yok; hazırlığı hakkında olumlu veya olumsuz hüküm verilemiyor.')
@@ -108,7 +109,7 @@ export function fluentHorseReason(race,horse,date,rival){
  if(delta!=null&&delta!==0)lines.push(`Son yarışına göre ${tr(Math.abs(delta))} kilo ${delta<0?'daha hafif':'daha ağır'} koşacak${delta>0?'; kilo artışı değerlendirmede dikkat gerektiriyor':''}.`)
  else if(load.daysSinceLastObservedStart!=null)lines.push(`Son doğrulanmış yarışından bu yana ${load.daysSinceLastObservedStart} gün geçti${load.distanceChangeMeters?'; bugün '+tr(Math.abs(load.distanceChangeMeters))+' metre '+(load.distanceChangeMeters>0?'daha uzun':'daha kısa')+' mesafeye çıkıyor':''}.`)
  if(maiden)lines.push(maiden.text)
- if(!last&&!positive(same?.starts))lines.push('Doğrulanmış yarış geçmişi sınırlı olduğu için bu adayın form ve pist uyumu hakkında güçlü bir sonuç çıkarılamıyor.','Programdaki bilgileri değerlendirmeye alınsa da rakiplerine karşı performans üstünlüğü henüz doğrulanmış değil.','Bu nedenle sıralamadaki yeri yüksek güvenli bir kazanma beklentisi olarak okunmamalı.')
+ if(!last&&!positive(same?.starts))return preparationHorseReason(race,horse,date,rival)
  else if(lines.length<3)lines.push('Bu kayıtlar bugünkü rakiplerin tamamına karşı nasıl koşacağını tek başına belirlemiyor.')
  return [...lines,jockeyComment(horse,date,rival)].filter(Boolean).join(' ')
 }

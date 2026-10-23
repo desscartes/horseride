@@ -67,3 +67,13 @@ test('input observer receives exact vectors without changing ranking',()=>{
  const audited=rankRaceLocally(race,'2026-10-02',history,bundle,{onPrediction:value=>{observed=value}})
  assert.deepEqual(audited,plain);assert.deepEqual(observed.vectors,raceFeatures(race,'2026-10-02',history));assert.equal(observed.prediction,audited)
 })
+
+test('changing the rider recomputes probabilities with the same trained model',()=>{
+ const history=createRankingHistory({identityVersion:2});addRaceToHistory(history,race,'2026-10-01')
+ const model={features_info:{float_features:[{feature_index:0,flat_feature_index:0}]},oblivious_trees:[{splits:[{split_type:'FloatFeature',float_feature_index:0,border:.15}],leaf_values:[-1,2]}],scale_and_bias:[1,[0]]}
+ const bundle={model,metadata:{method:'rider-refresh-fixture',trainedThrough:'2026-10-01',identityVersion:2,temperature:1,featureIndexes:[featureNames.indexOf('jockeyWin')]}}
+ const beforeModel=JSON.stringify(bundle),first=rankRaceLocally(race,'2026-10-03',history,bundle)
+ const changed={...race,horses:race.horses.map(h=>h.no===1?{...h,jockey:'K'}:h)},next=rankRaceLocally(changed,'2026-10-03',history,bundle)
+ assert.notEqual(first.horses.find(h=>h.no===1).probability,next.horses.find(h=>h.no===1).probability)
+ assert.equal(next.horses.find(h=>h.no===1).jockey,'K');assert.equal(JSON.stringify(bundle),beforeModel)
+})

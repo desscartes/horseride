@@ -27,3 +27,10 @@ test('saved program serves immediately without waiting for a source or model cal
   assert.equal((await fetch(`${origin}/api/health`)).status,200)
  }finally{await new Promise(r=>server.close(r))}
 })
+
+test('rider replacement cannot retain the previous surprise signal',async()=>{
+ const {retainVerifiedMarkets}=await import('./served-program.mjs'),old={city:'Bursa',no:2,horses:[{no:1,name:'A',jockey:'OLD'}],surpriseSignal:{surprise:{horseName:'A',reason:'OLD rider'}}}
+ assert.ok(retainVerifiedMarkets([{...old,surpriseSignal:undefined}],[old])[0].surpriseSignal)
+ const changed={...old,surpriseSignal:undefined,horses:[{no:1,name:'A',jockey:'NEW'}]}
+ assert.equal(retainVerifiedMarkets([changed],[old])[0].surpriseSignal,undefined)
+})

@@ -7,5 +7,5 @@ test('optional evidence refresh preserves in-flight analysis while future cache 
  const refreshed={...race,horses:[{...race.horses[0],workouts:[{dateISO:'2026-10-07'}],marketShare:90}]}
  assert.equal(analysisEntryFingerprint([race]),analysisEntryFingerprint([refreshed]))
  assert.notEqual(analysisFingerprint([race]),analysisFingerprint([refreshed]))
- for(const horses of [[],[{...race.horses[0],weight:56}],[{...race.horses[0],jockey:'Other'}]])assert.notEqual(analysisEntryFingerprint([race]),analysisEntryFingerprint([{...race,horses}]))
+ for(const horses of [[],[{...race.horses[0],weight:56}],[{...race.horses[0],jockey:'Other'}],[{...race.horses[0],outOfRace:true}]])assert.notEqual(analysisEntryFingerprint([race]),analysisEntryFingerprint([{...race,horses}]))
 })

@@ -1,3 +1,4 @@
+import {analysisEntryFingerprint} from './analysis-entry-policy.mjs'
 import {fork} from 'node:child_process'
 import {existsSync,readFileSync,mkdirSync,writeFileSync,renameSync,statSync} from 'node:fs'
 import {resolve} from 'node:path'
@@ -12,7 +13,7 @@ export function compactProgramRaces(races){
 export function retainVerifiedMarkets(races,previous=[]){
  return races.map(r=>{
   const previousRace=previous.find(p=>p.city===r.city&&Number(p.no)===Number(r.no))
-  if(!r.surpriseSignal&&previousRace?.surpriseSignal)r={...r,surpriseSignal:previousRace.surpriseSignal}
+  if(!r.surpriseSignal&&previousRace?.surpriseSignal&&analysisEntryFingerprint([r])===analysisEntryFingerprint([previousRace]))r={...r,surpriseSignal:previousRace.surpriseSignal}
   if(r.officialMarketsVerified)return r
   const old=previous.find(p=>p.city===r.city&&Number(p.no)===Number(r.no)&&p.time===r.time&&p.officialMarketsVerified)
   return old?{...r,sixLegStarts:old.sixLegStarts||[],fiveLegStarts:old.fiveLegStarts||[],officialMarketsVerified:true,officialMarketsReused:true}:r

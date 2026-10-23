@@ -3,7 +3,7 @@ import {acquireCollectionGate} from './collection-gate.mjs'
 import {readFile,writeFile,mkdir,unlink} from 'node:fs/promises'
 import {spawn} from 'node:child_process'
 import {isProcessRunning} from './process-liveness.mjs'
-const root='data/intelligence-models/2026-10-21/pedigree-completion-v1',out='data/experiments/jockey-v1',lock='data/maintenance/intelligence-training.lock'
+const root=process.argv[2]?.startsWith('data/intelligence-models/')?process.argv[2]:'data/intelligence-models/2026-10-21/pedigree-completion-v1',out=process.argv[3]?.startsWith('data/experiments/jockey-')?process.argv[3]:'data/experiments/jockey-v1',lock='data/maintenance/intelligence-training.lock'
 await mkdir(out,{recursive:true})
 try{const state=JSON.parse(await readFile(out+'/state.json','utf8'));if(state.phase==='complete'||(state.pid!==process.pid&&isProcessRunning(state.pid)))process.exit(0)}catch{}
 await writeFile(out+'/state.json',JSON.stringify({phase:'waiting_collection_gate',pid:process.pid,root}))

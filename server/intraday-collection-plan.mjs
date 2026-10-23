@@ -4,6 +4,7 @@ export function collectionPlan(day){
  for(const hour of [5,7,9,11,13,15,17,19,21,23]){
   const h=String(hour).padStart(2,'0')
   add(`program-${h}`,`${h}:00`,'server/program-refresh.mjs',[day])
+  add(`jockey-${h}`,`${h}:05`,'server/refresh-jockey-context.mjs',[day])
   add(`maternal-${h}`,`${h}:15`,'server/collect-program-maternal-lines.mjs',[day])
   if(hour>=5){add(`pedigree-${h}`,`${h}:30`,'server/collect-tjk-pedigree.mjs',[],{PEDIGREE_COUNTRIES:'TR,US',PEDIGREE_BATCH_SIZE:'50',PEDIGREE_CURRENT_ONLY:'1'});add(`workouts-${h}`,`${h}:45`,'server/collect-current-missing-workouts.mjs')}
  }

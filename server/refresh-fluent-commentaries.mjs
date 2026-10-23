@@ -1,3 +1,4 @@
+import {retrySqliteBusy} from './sqlite-retry.mjs'
 process.env.HORSERIDE_NO_LISTEN='1'
 import {mkdir,writeFile} from 'node:fs/promises'
 import {readServedProgram} from './served-program.mjs'
@@ -21,6 +22,6 @@ for(const city of new Set(races.map(r=>r.city))){
   const picks=p.picks.map(pick=>{const horse=r.horses.find(h=>h.name===pick.horseName);if(!horse)return pick;const rival=p.picks.map(p=>r.horses.find(h=>h.name===p.horseName)).find(h=>h&&!h.outOfRace&&h.name!==horse.name);report.picks++;return {...pick,reason:fluentHorseReason(r,horse,date,rival)}})
   changed++;report.races++;return {...p,...commentaryModelCaution(r,p),picks,explanationRevision:'evidence-v3-fluent',explanationUpdatedAt:now.toISOString()}
  })
- if(changed){try{await writeFile(`${directory}/${Buffer.from(city).toString('hex')}.json`,JSON.stringify(record),{flag:'wx'})}catch(e){if(e.code!=='EEXIST')throw e}saveDailyAiAnalysis({...record,analysis:{...record.analysis,races:predictions}})}
+ if(changed){try{await writeFile(`${directory}/${Buffer.from(city).toString('hex')}.json`,JSON.stringify(record),{flag:'wx'})}catch(e){if(e.code!=='EEXIST')throw e}await retrySqliteBusy(()=>saveDailyAiAnalysis({...record,analysis:{...record.analysis,races:predictions}}))}
 }
 await writeFile('data/maintenance/fluent-commentary-report.json',JSON.stringify(report,null,2));console.log(JSON.stringify(report))

@@ -1,3 +1,5 @@
+import {analysisEntryFingerprint} from './analysis-entry-policy.mjs'
+import {raceStartISO} from './preparation-readiness.mjs'
 import {createHash} from 'node:crypto'
 import {readServedProgram,publishProgram} from './served-program.mjs'
 import {findDailyAiAnalysis,saveDailyAiAnalysis,saveForecastSnapshots} from './database.mjs'
@@ -8,7 +10,10 @@ export function refreshSurpriseEvidence(date,{now=new Date().toISOString()}={}){
  const signals=new Map();let changed=0
  for(const city of new Set(program.races.map(r=>r.city))){
   const record=findDailyAiAnalysis(date,city);if(!record?.analysis?.races?.length)continue
-  const races=program.races.filter(r=>r.city===city).map(r=>profileEvidenceRace(r,date))
+  const meeting=program.races.filter(r=>r.city===city)
+  if(record.analysis.entryFingerprint&&record.analysis.entryFingerprint!==analysisEntryFingerprint(meeting))continue
+  const races=meeting.filter(r=>Date.parse(raceStartISO(r,date))>Date.parse(now)).map(r=>profileEvidenceRace(r,date))
+  if(!races.length)continue
   const key=createHash('sha256').update(JSON.stringify(record.analysis.races.map(p=>{const r=races.find(r=>r.no===p.raceNo);return [p.raceNo,p.picks.map(h=>h.horseName),r&&surpriseCandidates(r,p.picks).sort(),r?.horses.map(h=>[h.no,h.outOfRace,h.horsePerformance?.recentRuns?.map(run=>[run.date,run.finishPosition]),h.horsePerformance?.sameDistanceAndSurface,h.horsePerformance?.sameSurface])]}))).digest('hex')
   let predictions=record.analysis.races,capturedAt=record.analysis.surpriseUpdatedAt||record.createdAt
   if(record.analysis.surpriseEvidenceKey!==key){
