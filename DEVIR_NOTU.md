@@ -685,3 +685,9 @@ Son doğrulama:
 - Türkiye son23Ekim20:07Zişinde3atın kaydı tamamlanmış, bir at database is locked yüzünden kaydedilememişti. collectHorseWorkouts veri ve hamkaynak kayıtlarına mevcut boundedretrySqliteBusy eklendi. KolektörCLI de ortakgate korur; kalıcı hata görünür kalır.
 -10kuyruk/kimlik/tarih/kilit test passed. SQLite kaynak hatası yeniden denemesi yapılmaz. Yeni24Ekimprogramı00:00'da henüz yayımlanmış yerel snapshot değil; bugünkü kapsam eski23Ekimverisi diye sunulmaz. Sabah/gün içi mevcut işleri yeni kodu kullanacak.
 - Açık: ABD tarihsel fit döneminde idman yok; AU kaynağı collection-report blocked_by_source_verification, otomatik tekrar yasak korunuyor; GB/ZA doğrulanmış idman kaynağı yok. Equibase kamu takvimi yakın tarihleri gösteriyor, eski fit boşluğunu kapattığına kanıt yok. Modeller değiştirilmedi.
+
+## 24 Ekim — dış erişim kesintisi onarımı
+- 13:51TR:8788API200;8793yayıngeçidi dinlemiyor, önceki quicktunnel DNSNXDOMAIN. API/veri kaybı kanıtı yok; gateway+tunnel süreçleri artık yoktu. Hangi olayın sonlandırdığı bilinmiyor.
+- Gateway ve daha önce onaylanan yalnız uygulama/API sınırındaki Cloudflare tüneli yeniden başlatıldı. YeniURLhttps://incurred-spell-drinking-lib.trycloudflare.com; eski geçiciURLgeri alınamaz. TelefonAPKsunucuadresinin değiştirilmesi gerekir; web linki doğrudan çalışır.
+- HorseRide-Public-Watchdog iki dakikada bir ve kullanıcıoturumaçılışında çalışır; kapalıgateway/tunneli gizli yeniden başlatır,mutex+IgnoreNew ile çift iş açmaz, sağlıklı süreçleri durdurmaz. Adres değişirse public-address ve datedhealth günceller; kuruluAPK'ye otomatik adres aktardığı iddiası yok. PCkapalı/ağyok/oturumkapalıdurumu için kesintisizlik garantisi yok.
+- check-public-access eski8790portu yerine configuration.gateway8793 kullanır; UTF8BOM destekli. DışHTTPSroot200/health200/24Ekim91race doğrulandı.5gatewaytestpassed. Aktifmodel/öğrenim/tahmingeçmişi değiştirilmedi.
