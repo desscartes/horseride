@@ -23,11 +23,15 @@ try {
  }
  $log=Get-Content 'data/maintenance/tunnel-recovery.stderr.log' -Raw -ErrorAction SilentlyContinue
  $candidate=[regex]::Match([string]$log,'https://[a-z0-9-]+\.trycloudflare\.com').Value
+ $stableUrl='https://ganyan-zekasi.tailab9792.ts.net'
+ $stableHealthy=$false
+ try{$stableHealth=Invoke-RestMethod ($stableUrl+'/api/health') -TimeoutSec 6;$stableHealthy=[bool]$stableHealth.ok}catch{}
+ if($stableHealthy){$candidate=$stableUrl}
  $external=$null
  if($candidate){
   try{$external=Invoke-RestMethod ($candidate+'/api/health') -TimeoutSec 8}catch{}
-  if($external.ok -and $candidate -ne $cfg.url){$cfg.previousUrl=$cfg.url;$cfg.url=$candidate;$cfg.verifiedAt=[DateTime]::UtcNow.ToString('o');$cfg | ConvertTo-Json | Set-Content 'data/maintenance/public-address.json' -Encoding UTF8;$changes+='verified_address_updated'}
+  if($external.ok -and $candidate -ne $cfg.url){$cfg.previousUrl=$cfg.url;$cfg.url=$candidate;$cfg.provider=if($stableHealthy){'tailscale-funnel'}else{'cloudflare-quick-tunnel'};$cfg.temporary=(-not $stableHealthy);$cfg.verifiedAt=[DateTime]::UtcNow.ToString('o');$cfg | ConvertTo-Json | Set-Content 'data/maintenance/public-address.json' -Encoding UTF8;$changes+='verified_address_updated'}
  }
  $meta | ConvertTo-Json | Set-Content -LiteralPath $metaPath -Encoding UTF8
- @{checkedAt=[DateTime]::UtcNow.ToString('o');url=$cfg.url;externalOk=[bool]$external.ok;changes=$changes;automaticRecovery=$true;addressMayChange=$true} | ConvertTo-Json | Set-Content 'data/maintenance/public-watchdog.json' -Encoding UTF8
+ @{checkedAt=[DateTime]::UtcNow.ToString('o');url=$cfg.url;externalOk=[bool]$external.ok;changes=$changes;automaticRecovery=$true;addressMayChange=(-not $stableHealthy);stableUrl=$stableUrl;stableHealthy=$stableHealthy} | ConvertTo-Json | Set-Content 'data/maintenance/public-watchdog.json' -Encoding UTF8
 } finally { $mutex.ReleaseMutex();$mutex.Dispose() }
