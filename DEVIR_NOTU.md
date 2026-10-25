@@ -702,3 +702,9 @@ Son doğrulama:
 - Kullanıcı Serveo denemesini açıkça onayladı. BatchModeyes anonymouskeyboardinteractiveyi kapatıyordu; bu nedenle publickey/keyboardinteractive reddi görüldü. BatchModeno+keyboardinteractive ile anonim tünel açıldı. Yeni özel tünel anahtarı data/maintenance altında, kişiselSSHanahtarları kullanılmadı.
 - ganyanzekasi talebi yerine rastgele serveousercontent adresi verildi; APIhealth200/CORS*/AndroidUA200 doğrulandı. İstenen ad alınmadığı için kalıcıçözüm diye sunulmadı, üretimadresi değiştirilmedi. TestSSHsüreci kimliğiyle kapatıldı; mevcutCloudflare/Tailscale etkilenmedi.
 - Serveo docs kayıtlıhostname için consolehesabı+açıkSSHanahtarı eklenmesini gerektiriyor. Kullanıcının ücretsizConsolegirişine ihtiyaç var; hesapoluşturulmadı, ödemeabonelikyok. Dedicatedpublickeypath serveo-tunnel-ed25519.pub. Özelanahtar sohbet/GitHub'a konmadı. Raporserveo-trial-2026-10-25.json.
+
+## 25 Ekim — LAN HTTP APK düzeltmesi1.38
+- Telefon Chrome192.168.1.15:8788/api/health ok:true kullanıcı tarafından doğrulandı; mevcut GanyanAPIWindowsfirewallLocalSubnetAnyprofil ve0.0.0.0:8788 çalışıyor. Telefon LANerişimi var, uygulamaHTTPkatmanında eksik bulundu.
+- Eski1.37release manifestnetworksecurityconfigyok/cleartextdefaultfalse, HTTPSWebViewmixedfalse. İlk geniş allowMixedContent önerisi otomatikonaydenetiminde reddedildi; uygulanmadı. Güvenli alternatife geçildi: CapacitorHttpnativefetch enabled; globalallowMixedContent açılmadı; networksecurityconfigbaseHTTPfalse, yalnız192.168.1.15/localhost/127.0.0.1, includeSubdomainsfalse.
+-1.38/code39com.horseride.local mevcutimzayla derleniyor; eskiUIyenidenVitebuildedilmez. İlk lintincludeSubdomainsaçıkistemişti,düzeltildi;kontrolleratlatılmadı. HTTPSsertifikadoğrulaması aynı, tümHTTPadreslerineizin yok. IPdeğişirse bu LANistisnasıuymaz.
+- Telefondaki1.38kurulumu veAPKbağlantısı henüz doğrulanmadı. İndirme yayımlandığında ayrısonuç kaydı. Üretimmodel/veri/tahmingeçmişi değiştirilmedi.
