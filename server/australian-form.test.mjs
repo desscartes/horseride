@@ -40,7 +40,7 @@ test('verified debut with trials is distinguished from missing career and routin
  assert.doesNotMatch(e.text,/Yakın dönem idman kaydı eksik/)
  const prediction=enrichCommentaryRace({...r,horses:[h],rankingSource:'program_baseline'},{picks:[{horseName:h.name}],confidence:'high',risks:[]},'2026-10-16')
  assert.equal(prediction.confidence,'low')
- assert.match(prediction.picks[0].reason,/ilk yarış startına/)
+ assert.match(prediction.picks[0].reason,/ilk (?:yarış )?startına/)
 })
 
 import {australianSurface} from './australian-form.mjs'

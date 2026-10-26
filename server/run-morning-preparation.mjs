@@ -18,7 +18,8 @@ let report={day,startedAt:new Date().toISOString(),phase:'starting',stages:{},me
 try{const old=await json(path);report={...old,phase:'resuming',resumedAt:new Date().toISOString()}}catch{}
 const save=async()=>{await writeFile(path+'.tmp',JSON.stringify(report,null,2));await rename(path+'.tmp',path)}
 const run=(script,args=[],env={})=>new Promise((ok,fail)=>{const child=spawn(process.execPath,['--use-system-ca',script,...args],{windowsHide:true,stdio:'inherit',env:{...process.env,HORSERIDE_MORNING_OWNER:String(process.pid),...env}});child.on('error',fail);child.on('exit',code=>code===0?ok():fail(Error(`${script} exited ${code}`)))})
-async function stage(name,action){if(report.stages[name]?.status==='complete')return;report.phase=name;await save();try{await action();report.stages[name]={status:'complete',finishedAt:new Date().toISOString()}}catch(e){report.stages[name]={status:'failed',error:e.message};report.errors.push(`${name}: ${e.message}`)}await save()}
+const backgroundStages=new Set(['program_maternal_lines','current_pedigree','current_workouts','us_workouts','commentaries','maintenance','training_pedigree','historical_prizes','training','jockey_candidate_comparison','workout_candidate_comparison','training_input_coverage','fluent_commentaries'])
+async function stage(name,action){if(process.env.HORSERIDE_MORNING_FULL!=='1'&&backgroundStages.has(name)){report.stages[name]={status:'scheduled',reason:'Uzun iş hazırlık kilidinde bekletilmez; gün içi veya bağımsız günlük bakım işi yürütür.'};await save();return}if(report.stages[name]?.status==='complete')return;report.phase=name;await save();try{await action();report.stages[name]={status:'complete',finishedAt:new Date().toISOString()}}catch(e){report.stages[name]={status:'failed',error:e.message};report.errors.push(`${name}: ${e.message}`)}await save()}
 const api=async(url,body)=>{const response=await fetch('http://127.0.0.1:8788'+url,{...(body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{}),signal:AbortSignal.timeout(180000)});const data=await response.json();if(!response.ok)throw Error(data.error||`HTTP ${response.status}`);return data}
 try{
  await save()
@@ -49,5 +50,5 @@ try{
  await stage('jockey_candidate_comparison',()=>run('server/run-jockey-research.mjs',[`data/intelligence-models/${day}/morning`,`data/experiments/jockey-${day}-morning`]))
  await stage('workout_candidate_comparison',()=>run('server/run-workout-research.mjs',[`data/intelligence-models/${day}/morning`,`data/experiments/us-workout-${day}-morning`]))
  await stage('training_input_coverage',()=>run('server/audit-training-evidence.mjs',[`data/intelligence-models/${day}/morning`]))
- report.phase=Object.values(report.stages).some(s=>s.status==='failed')?'partial':'complete';report.finishedAt=new Date().toISOString();await save();console.log(JSON.stringify(report));if(report.phase==='partial')process.exitCode=1
+ report.phase=Object.values(report.stages).some(s=>s.status==='failed')||report.dataComplete!==true?'partial':'complete';report.finishedAt=new Date().toISOString();await save();console.log(JSON.stringify(report));if(report.phase==='partial')process.exitCode=1
 }finally{await unlink(lock).catch(()=>{})}

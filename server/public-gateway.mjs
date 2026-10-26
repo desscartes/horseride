@@ -1,3 +1,4 @@
+import {publicRead} from './public-read-service.mjs'
 import {readCouponResponse} from './coupon-response-cache.mjs'
 import {programWithJockeyEvidence} from './jockey-evidence.mjs'
 import {preparedOrEmergencyCommentary,supplementCommentary} from './commentary-fallback.mjs'
@@ -53,6 +54,7 @@ export function createPublicGateway({upstream='http://127.0.0.1:8788',root=defau
      for(const [key,values]of Object.entries({period:['week','total'],scope:['all','domestic','foreign'],source:['numeric','daily_ai']})){
       const value=url.searchParams.get(key)||values[0];if(!values.includes(value))return reply(400,{error:'Geçersiz rapor filtresi.'});target.searchParams.set(key,value)
      }
+     if(fetcher===fetch)return reply(200,await publicRead('report',Object.fromEntries(target.searchParams)))
      const response=await fetcher(target,{method:'GET',signal:AbortSignal.timeout(15000)});return reply(response.status,await response.json())
     }
     if(url.pathname.startsWith('/api/history/')||url.pathname==='/api/performance'){
@@ -70,10 +72,12 @@ export function createPublicGateway({upstream='http://127.0.0.1:8788',root=defau
      const response=await fetcher(target,{method:'GET',signal:AbortSignal.timeout(15000)})
      return reply(response.status,await response.json())
     }
+    if(url.pathname==='/api/simulation'&&fetcher===fetch)return reply(200,await publicRead('simulation'))
     const day=localDay(),date=url.searchParams.get('date')||day
     if(![shiftDay(day,-1),day,shiftDay(day,1)].includes(date))return reply(400,{error:'Yalnızca dün, bugün ve yarın kullanılabilir.'})
     const city=url.searchParams.get('city')||'Tümü'
     if(city.length>80)return reply(400,{error:'Invalid city'})
+    if(url.pathname==='/api/meetings')try{const saved=await programReader(date);if(saved?.date===date&&saved.meetings?.length)return reply(200,{date,meetings:saved.meetings,cached:true,preparedAt:saved.fetchedAt})}catch{}
     if(url.pathname==='/api/coupon-showcase'){const prepared=await readCouponResponse(await programReader(date),date,city);if(prepared)return reply(200,prepared)}
     let commentaryProgram=null,commentaryBackup=null
     if(url.pathname==='/api/analysis/daily')try{commentaryProgram=await programWithJockeyEvidence(await programReader(date));commentaryBackup=await preparedOrEmergencyCommentary(commentaryProgram,date,city)}catch{}
@@ -110,5 +114,6 @@ export function createPublicGateway({upstream='http://127.0.0.1:8788',root=defau
  })
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
+ const warm=()=>{void publicRead('report',{period:'week',scope:'all',source:'numeric'}).catch(e=>console.error('Report prewarm:',e.message));void publicRead('simulation').catch(e=>console.error('Simulation prewarm:',e.message))};warm();setInterval(warm,60000).unref()
  createPublicGateway().listen(Number(process.env.PUBLIC_PORT||8790),'127.0.0.1',()=>console.log('Public gateway listening on loopback'))
 }

@@ -1,3 +1,4 @@
+import {rankingComparison} from './ranking-comparison.mjs'
 import {priorRaceContext} from './prior-race-context.mjs'
 import {enrichAustralianRaces} from './australian-form.mjs'
 import {australianFeatures} from './australian-features.mjs'
@@ -191,6 +192,7 @@ export function rankRaceLocally(race,date,history,bundle,{onPrediction}={}){
   const maximum=Math.max(...scores),exp=scores.map(v=>Math.exp(v-maximum)),total=exp.reduce((a,b)=>a+b,0)
   const extended=bundle.metadata.inputs?.includes('workouts')&&bundle.metadata.inputs?.includes('official_weather')
   const prediction= {...race,rankingSource:'local_trained_model',rankingCountry:country||'TR',rankingMethod:bundle.metadata.method,rankingEvidence:country?{country,workoutsUsed:Boolean(bundle.metadata.featureNames?.some(n=>/workout/i.test(n)&&!/^missing/i.test(n))),weatherUsed:false,speedClassUsed:Boolean(advanced),speedEvidenceRunners:advanced?.filter(f=>f[0]>0).length||0,workoutRunners:features.filter(f=>!f[featureNames.indexOf('missingWorkout')]).length,externalChartRunners:vectors.filter(f=>f[featureNames.length]>0).length,runners:race.horses.length}:extended?{workoutsUsed:true,weatherUsed:true,weatherAvailable:!raceEnvironment(race,date).missing,workoutRunners:features.filter(f=>!f[featureNames.indexOf('missingWorkout')]).length,runners:race.horses.length}:null,horses:race.horses.map((horse,i)=>({...horse,baselineProbability:horse.probability,probability:Number((100*exp[i]/total).toFixed(2)),rankingScore:scores[i]})).sort((a,b)=>b.rankingScore-a.rankingScore)}
+  if(prediction.horses.length>=2){const [first,second]=prediction.horses,selected=v=>bundle.metadata.featureIndexes?bundle.metadata.featureIndexes.map(i=>v[i]):v,a=race.horses.findIndex(h=>h.no===first.no&&h.name===first.name),b=race.horses.findIndex(h=>h.no===second.no&&h.name===second.name);if(a>=0&&b>=0)first.rankingComparison=rankingComparison(bundle.metadata.featureNames||[],selected(vectors[a]),selected(vectors[b]),v=>evaluateTreeModel(bundle.model,v)/bundle.metadata.temperature,second.name)}
   prediction.rankingEvidence={...(prediction.rankingEvidence||{}),workoutsUsed:Boolean(bundle.metadata.featureNames?.some(n=>/workout/i.test(n)&&!/^missing/i.test(n))),selectedWorkoutFeatures:(bundle.metadata.featureNames||[]).filter(n=>/workout/i.test(n))}
   onPrediction?.({race,date,bundle,vectors,prediction})
   return prediction

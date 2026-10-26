@@ -12,6 +12,7 @@ export function collectionPlan(day){
  for(const h of ['06','10','14','18','22'])add(`workout-usage-${h}`,`${h}:15`,'server/audit-workout-usage.mjs',[day])
  for(const h of ['06','10','18'])add(`gap-audit-${h}`,`${h}:30`,'server/audit-current-runner-gaps.mjs',[day])
  for(const h of ['06','08','10','12','14','16','18','20','22'])add(`readiness-${h}`,`${h}:45`,'server/audit-preparation-readiness.mjs',[day])
+ for(const h of ['06','08','10','12','14','16','18','20','22'])add(`comments-${h}`,`${h}:35`,'server/refresh-fluent-commentaries.mjs')
  return jobs.sort((a,b)=>a.time.localeCompare(b.time)||a.id.localeCompare(b.id))
 }
 export function nextCollectionJob(day,minute,state={}){

@@ -30,7 +30,7 @@ export function applicationTickets(since='2026-10-10'){
 export function listApplicationForecasts(since,through,source){
  const archived=new Map()
  if(source==='daily_ai')for(const row of database.prepare('SELECT * FROM daily_ai_analyses WHERE date>=? AND date<=?').all(since,through))archived.set(`${row.date}:${row.city}:${row.input_hash}:${row.created_at}`,JSON.parse(row.analysis_json))
- return database.prepare(`SELECT f.*,s.payload_json AS surprise_json FROM (SELECT *,ROW_NUMBER() OVER(PARTITION BY date,city,race_no ORDER BY captured_at DESC,id DESC) AS latest FROM forecast_snapshots WHERE date>=? AND date<=? AND source=? AND captured_at<scheduled_start) f LEFT JOIN forecast_surprises s ON s.snapshot_id=f.id WHERE latest=1 ORDER BY date,city,race_no`).all(since,through,source).map(row=>{
+ return database.prepare(`SELECT x.*,s.payload_json AS surprise_json FROM (SELECT id,ROW_NUMBER() OVER(PARTITION BY date,city,race_no ORDER BY captured_at DESC,id DESC) AS latest FROM forecast_snapshots WHERE date>=? AND date<=? AND source=? AND captured_at<scheduled_start) f JOIN forecast_snapshots x ON x.id=f.id LEFT JOIN forecast_surprises s ON s.snapshot_id=x.id WHERE latest=1 ORDER BY x.date,x.city,x.race_no`).all(since,through,source).map(row=>{
   const picks=JSON.parse(row.picks_json),saved=row.surprise_json?JSON.parse(row.surprise_json):null,prediction=archived.get(`${row.date}:${row.city}:${row.input_hash}:${row.captured_at}`)?.races?.find(p=>p.city===row.city&&Number(p.raceNo)===row.race_no)
   const samePicks=prediction&&JSON.stringify(prediction.picks.map(p=>p.horseName))===JSON.stringify(picks.map(p=>p.horseName))
   const tracked=Boolean(saved||samePicks&&Object.hasOwn(prediction,'surprise'))
@@ -284,8 +284,8 @@ export function findHorseHistory(name) {
   return database.prepare(`
     SELECT r.date, r.city, r.race_no AS raceNo, r.distance, r.surface, e.weight, e.jockey, e.trainer, e.start_number AS start, e.last_six AS lastSix, e.days_since_race AS daysSinceRace, e.best_time_seconds AS bestTimeSeconds, e.independent_score AS independentScore, e.probability
     FROM race_entries e JOIN horses h ON h.id = e.horse_id JOIN races r ON r.id = e.race_id
-    WHERE h.name LIKE ? ORDER BY r.date DESC, r.race_no DESC LIMIT 50
-  `).all(`%${name}%`)
+    WHERE h.name = ? ORDER BY r.date DESC, r.race_no DESC LIMIT 50
+  `).all(name)
 }
 
 export function listRecentAnalyses(limit = 12) {

@@ -1,3 +1,4 @@
+import {publicRead} from './public-read-service.mjs'
 import {retrySqliteBusy} from './sqlite-retry.mjs'
 import {jockeyEvidence} from './jockey-evidence.mjs'
 import {recordRankingInputs} from './ranking-input-journal.mjs'
@@ -2504,9 +2505,9 @@ export const server = createServer(async (request, response) => {
   if(requestUrl.pathname==='/api/application-report'&&request.method==='GET'){
     const period=requestUrl.searchParams.get('period')||'week',scope=requestUrl.searchParams.get('scope')||'all',source=requestUrl.searchParams.get('source')||'numeric'
     if(!['week','total'].includes(period)||!['all','domestic','foreign'].includes(scope)||!['numeric','daily_ai'].includes(source))return sendJson(response,400,{error:'Geçersiz rapor filtresi.'})
-    try{return sendJson(response,200,applicationReport({period,scope,source}))}catch(error){console.error('Application report:',error.message);return sendJson(response,503,{error:'Rapor güncelleniyor. Kısa süre sonra tekrar deneyin.'})}
+    try{return sendJson(response,200,await publicRead('report',{period,scope,source}))}catch(error){console.error('Application report:',error.message);return sendJson(response,503,{error:'Rapor güncelleniyor. Kısa süre sonra tekrar deneyin.'})}
   }
-  if(requestUrl.pathname==='/api/simulation'&&request.method==='GET'){try{const {simulationReport}=await import('./simulation-service.mjs');return sendJson(response,200,simulationReport())}catch(error){console.error('Simulation:',error.message);return sendJson(response,503,{error:'Simülasyon güncelleniyor.'})}}
+  if(requestUrl.pathname==='/api/simulation'&&request.method==='GET'){try{return sendJson(response,200,await publicRead('simulation'))}catch(error){console.error('Simulation:',error.message);return sendJson(response,503,{error:'Simülasyon güncelleniyor.'})}}
   if(requestUrl.pathname==='/api/coupon-showcase'&&request.method==='GET'){
    const date=requestUrl.searchParams.get('date')||localDay(),city=requestUrl.searchParams.get('city')
    if(!/^\d{4}-\d{2}-\d{2}$/.test(date))return sendJson(response,400,{error:'Geçersiz tarih.'})
@@ -2545,7 +2546,7 @@ export const server = createServer(async (request, response) => {
   if (requestUrl.pathname === '/api/history/horse') {
     const name = requestUrl.searchParams.get('name')
     if (!name) return sendJson(response, 400, { error: 'name parametresi gerekli.' })
-    return sendJson(response, 200, { name, entries: findHorseHistory(name) })
+    try{return sendJson(response, 200, await publicRead('horse',{name}))}catch{return sendJson(response,503,{error:'Kaydedilmiş tahmin geçmişi güncelleniyor.'})}
   }
   if (requestUrl.pathname === '/api/history/races') return sendJson(response, 200, { analyses: listRecentAnalyses() })
   if (requestUrl.pathname === '/api/history/health') return sendJson(response, 200, databaseHealth())

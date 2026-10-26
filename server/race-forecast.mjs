@@ -16,6 +16,8 @@ for(const [city,name,region,country,addressSource] of [
  ['Wolverhampton Birleşik Krallık','Wolverhampton','England','GB','https://www.wolverhampton-racecourse.co.uk/contact-us'],
  ['ClubHipico Santiago Şili','Santiago',null,'CL','https://www.clubhipico.cl/contacto/']
 ])towns.set(city,{name,region,country,addressSource})
+towns.set('Redcar Birleşik Krallık',{name:'Redcar',country:'GB',addressSource:'https://www.redcarracing.co.uk/contact/'})
+towns.set('Leicester Birleşik Krallık',{name:'Oadby',country:'GB',addressSource:'https://www.leicester-racecourse.co.uk/contact-us/'})
 towns.set('Longchamp Fransa',towns.get('ParisLongchamp Fransa'))
 const normalizedTowns=new Map([...towns].map(([city,town])=>[horseIdentity(city),town]))
 export const forecastLocation=city=>normalizedTowns.get(horseIdentity(city))||null

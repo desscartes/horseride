@@ -1,3 +1,4 @@
+import {comparisonText} from './ranking-comparison.mjs'
 import {workoutComment} from './workout-evidence.mjs'
 import {workoutTime} from './environment-features.mjs'
 import {jockeyComment} from './jockey-evidence.mjs'
@@ -94,7 +95,7 @@ export function preparationHorseReason(race,horse,date,rival){
  lines.push('İlk sıralarda bulunması, henüz ölçülmüş bir yarış üstünlüğü değildir; bu değerlendirmeye güven, mevcut kanıtın kapsamıyla sınırlı tutulur.')
  return lines.join(' ')
 }
-export function fluentHorseReason(race,horse,date,rival){
+function baseFluentHorseReason(race,horse,date,rival){
  if(horse.australianEvidence?.career?.starts===0||(!recentEvidenceRuns(horse,date).length&&!positive(horse.horsePerformance?.sameDistanceAndSurface?.starts)&&!String(horse.lastSix||'').match(/[1-9]/)))return preparationHorseReason(race,horse,date,rival)
  const baseline=baselineSelectionReason(race,horse,rival);if(baseline)return [baseline,workoutComment(race,horse,date),jockeyComment(horse,date,rival)].filter(Boolean).join(' ')
  const runs=recentEvidenceRuns(horse,date),last=runs[0],same=horse.horsePerformance?.sameDistanceAndSurface,load=recentLoadEvidence(runs,horse.workouts||[],horse,race,date),lines=[]
@@ -125,3 +126,5 @@ export function enrichCommentaryRace(race,prediction,date){
  const reason=surprise?'AGF favorileri dışındaki aday, doğrulanmış yarış kayıtlarıyla destekleniyor.':!hasAgf?'AGF verisi eksik olduğu için favori dışı sürpriz etiketi doğrulanamıyor.':`${allowed.length} favori dışı aday incelendi; mevcut pist/mesafe ve yakın dönem form kayıtları sürpriz seçimi için yeterli olumlu kanıt sunmuyor.`
  return {...prediction,...commentaryModelCaution(race,prediction),picks,surprise,surpriseAssessment:{status:surprise?'supported':!hasAgf?'missing_agf':'insufficient_evidence',reason},explanationRevision:'evidence-v3-fluent'}
 }
+
+export function fluentHorseReason(race,horse,date,rival){return [comparisonText(horse),baseFluentHorseReason(race,horse,date,rival)].filter(Boolean).join(" ")}

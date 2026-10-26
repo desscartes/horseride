@@ -11,6 +11,8 @@ test('published foreign venue aliases resolve to verified regional locations wit
  assert.equal(forecastLocation('Perak Malezya').name,'Ipoh')
  assert.equal(forecastLocation('Perak ABD'),null)
  assert.equal(forecastLocation('Unknown Kanada'),null)
+ assert.equal(forecastLocation('Redcar Birleşik Krallık').name,'Redcar')
+ assert.equal(forecastLocation('Leicester Birleşik Krallık').name,'Oadby')
  assert.equal(forecastLocation('Finger Lakes ABD').coordinateScope,'official_address_geocode')
  assert.equal(forecastLocation('Mahoning Valley ABD').region,'Ohio')
  assert.equal(forecastLocation('Gowran Park İrlanda').name,'Gowran')

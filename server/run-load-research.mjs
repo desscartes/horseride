@@ -1,12 +1,14 @@
+import {isProcessRunning} from './process-liveness.mjs'
 import './runtime-env.mjs'
 import {acquireCollectionGate} from './collection-gate.mjs'
 import {readFile,writeFile,mkdir,unlink} from 'node:fs/promises'
 import {spawn} from 'node:child_process'
 import {fileURLToPath} from 'node:url'
 process.chdir(fileURLToPath(new URL('../',import.meta.url)))
-const root='data/intelligence-models/2026-10-21/pedigree-completion-v1',out=process.argv[2]||'data/experiments/observed-load-v2',lock='data/maintenance/intelligence-training.lock'
+const root=process.argv[3]||'data/intelligence-models/2026-10-21/pedigree-completion-v1',out=process.argv[2]||'data/experiments/observed-load-v2',lock='data/maintenance/intelligence-training.lock'
+if(!/^data\/intelligence-models\/[A-Za-z0-9_./-]+$/.test(root)||root.includes('..'))throw Error('Frozen versioned training input required')
 if(!/^data\/experiments\/observed-load-v[0-9]+$/.test(out))throw Error('Versioned research output required')
-await mkdir(out,{recursive:true});try{if(JSON.parse(await readFile(out+'/state.json','utf8')).phase==='complete')process.exit(0)}catch{}
+await mkdir(out,{recursive:true});try{const previous=JSON.parse(await readFile(out+'/state.json','utf8'));if(previous.phase==='complete'||previous.pid!==process.pid&&isProcessRunning(previous.pid))process.exit(0)}catch{}
 await writeFile(out+'/state.json',JSON.stringify({phase:'waiting_collection_gate',pid:process.pid,root}))
 await acquireCollectionGate()
 await writeFile(lock,JSON.stringify({pid:process.pid,root:out}),{flag:'wx'})

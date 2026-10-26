@@ -49,7 +49,8 @@ export async function captureApplicationTickets(date=localDay(),{request=fetch,n
 const reportCache=new Map()
 export function applicationReport(options={}){
  const today=localDay(),key=JSON.stringify([today,options]),cached=reportCache.get(key);if(cached&&Date.now()-cached.at<60000)return cached.value
- const source=options.source||'numeric',snapshots=listApplicationForecasts(reportStart,today,source),value=summarizeApplication({snapshots,surprises:source==='daily_ai'?snapshots:listApplicationForecasts(reportStart,today,'daily_ai'),outcomes:applicationOutcomes(reportStart),tickets:applicationTickets(reportStart).filter(t=>t.algorithm!=='optimal-100-v1'&&t.source!=='simulation'),today,...options})
+ const since=options.period==='total'?reportStart:[reportStart,new Date(Date.parse(today+'T12:00:00Z')-6*86400000).toISOString().slice(0,10)].sort().at(-1)
+ const source=options.source||'numeric',snapshots=listApplicationForecasts(since,today,source),value=summarizeApplication({snapshots,surprises:source==='daily_ai'?snapshots:listApplicationForecasts(since,today,'daily_ai'),outcomes:applicationOutcomes(since),tickets:applicationTickets(since).filter(t=>t.algorithm!=='optimal-100-v1'&&t.source!=='simulation'),today,...options})
  if(reportCache.size>=24)reportCache.delete(reportCache.keys().next().value);reportCache.set(key,{at:Date.now(),value});return value
 }
 export function dailyApplicationTicket(date=localDay()){

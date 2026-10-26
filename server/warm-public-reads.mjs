@@ -1,0 +1,2 @@
+import {publicRead} from './public-read-service.mjs'
+for(const period of ['week','total'])for(const source of ['numeric','daily_ai'])for(const scope of ['all','domestic','foreign']){const at=Date.now();try{const report=await publicRead('report',{period,scope,source});console.log(JSON.stringify({period,source,scope,ms:Date.now()-at,preparedAt:report._delivery.preparedAt,evaluated:report.totals.evaluated}))}catch(e){console.error(e.message);process.exitCode=1}}

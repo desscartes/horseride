@@ -10,23 +10,27 @@
     "service": "node --use-system-ca server/service-supervisor.mjs",
     "maintenance": "node --use-system-ca server/daily-maintenance.mjs",
     "dev:api": "node --use-system-ca --env-file-if-exists=.env server/index.mjs",
-    "build": "vite build",
+    "build": "node server/build-coupon-ui-patch.mjs",
     "preview": "vite preview",
     "android:add": "cap add android",
     "android:sync": "node server/guard-android-sync.mjs",
     "android:open": "cap open android",
     "build:production-ui": "node server/build-coupon-ui-patch.mjs",
-    "android:build:local": "powershell.exe -NoProfile -File server/build-android-local.ps1 -Sign"
+    "android:build:local": "powershell.exe -NoProfile -File server/build-android-local.ps1 -Sign",
+    "test": "node server/run-tests.mjs"
   },
   "dependencies": {
-    "@capacitor/android": "latest",
-    "@capacitor/cli": "latest",
-    "@capacitor/core": "latest",
-    "@vitejs/plugin-react": "latest",
-    "cheerio": "^1.2.0",
-    "react": "latest",
-    "react-dom": "latest",
-    "tjk-api": "^1.0.4",
-    "vite": "latest"
+    "@capacitor/android": "8.5.2",
+    "@capacitor/cli": "8.5.2",
+    "@capacitor/core": "8.5.2",
+    "@vitejs/plugin-react": "6.1.1",
+    "cheerio": "1.2.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "tjk-api": "1.0.4",
+    "vite": "8.3.1"
+  },
+  "engines": {
+    "node": ">=24 <25"
   }
 }

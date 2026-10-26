@@ -5,11 +5,11 @@ import {budgetBetTypes,getBudgetUnitPrice} from '../src/data/ticketData.js'
 import {officialMarketAllowed} from '../src/data/officialMarkets.js'
 import {reportBreakdowns} from './report-breakdowns.mjs'
 export const reportStart='2026-10-10'
-export function optimalHundredTicket(races,date,ordinal,{now=new Date().toISOString(),legCount=6,budget=100}={}){
+export function optimalHundredTicket(races,date,ordinal,{now=new Date().toISOString(),legCount=6,budget=100,requiredRankingSource='local_trained_model'}={}){
  if(!Number.isInteger(budget)||budget<1||budget>1000)return null
  if(![5,6].includes(legCount)||races.length!==legCount||!officialMarketAllowed(races[0],legCount)||!races[0][legCount===6?'sixLegStarts':'fiveLegStarts'].includes(ordinal)||races.some((r,i)=>Number(r.no)!==Number(races[0].no)+i||r.city!==races[0].city))return null
  const start=scheduledRaceStart(races[0].scheduledDate||date,races[0].time,{calendarDate:Boolean(races[0].scheduledDate)})
- if(!start||now>=start||races.some(r=>r.rankingSource!=='local_trained_model'))return null
+ if(!start||now>=start||races.some(r=>r.rankingSource!==requiredRankingSource))return null
  const price=getBudgetUnitPrice(budgetBetTypes.find(b=>b.id===`${legCount}li-ganyan`),races[0].city),limit=Math.floor(budget/price)
  let states=new Map([[1,{score:1,legs:[]}]])
  for(const race of races){

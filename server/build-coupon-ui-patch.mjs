@@ -55,8 +55,9 @@ output=replace(output,'children:e===`report`?`Tahmin, ilk üç başarısı ve al
 const socialView=await read('src/data/selectedSocialView.js'),socialViewFile=`selected-social-${hash(socialView)}.js`
 output=`import {renderSelectedSocial as __renderSelectedSocial} from "./${socialViewFile}";\nfunction __SelectedSocial(props){return __renderSelectedSocial(s,T,props)}\n`+output
 await writeFile('dist/assets/'+socialViewFile,socialView)
-output='import {renderSimulation as __renderSimulation} from "./simulation-view-v1.js";\nfunction __Simulation(){return __renderSimulation(s,T)}\n'+output
-await copyFile('src/data/simulationView.js','dist/assets/simulation-view-v1.js')
+const simulationView=await read('src/data/simulationView.js'),simulationViewFile=`simulation-view-${hash(simulationView)}.js`
+output=`import {renderSimulation as __renderSimulation} from "./${simulationViewFile}";\nfunction __Simulation(){return __renderSimulation(s,T)}\n`+output
+await writeFile('dist/assets/'+simulationViewFile,simulationView)
 output='import {couponChanceText as __couponChanceText} from "./coupon-chance-v1.js";\nimport {legSurpriseSuggestion as __legSurpriseSuggestion,surpriseSuggestionText as __surpriseSuggestionText} from "./coupon-surprise-v2.js";\n'+output
 await writeFile('dist/assets/coupon-surprise-v2.js',(await read('src/data/couponSurpriseSuggestion.js')).replace("'./surprisePolicy.js'","'./coupon-surprise-policy-v2.js'"))
 await copyFile('src/data/surprisePolicy.js','dist/assets/coupon-surprise-policy-v2.js')
@@ -68,6 +69,17 @@ output='function __raceAlternativeText(race,prediction){const a=__legSurpriseSug
 const transport=await read('src/data/ngrokTransport.js'),transportFile='ngrok-transport-'+hash(transport)+'.js'
 await writeFile('dist/assets/'+transportFile,transport)
 output='import "./'+transportFile+'";\n'+output
+output=replace(output,'providerUrls:e.providerUrls,failures:e.failures,message:e.message','fetchedAt:e.fetchedAt,providerUrls:e.providerUrls,failures:e.failures,message:e.message')
+output=replace(output,'x.source===`live`?`Program güncel`','x.source===`live`?__programState(x)')
+output=replace(output,'x.source===`live`?`Program hazır`','x.source===`live`?__programState(x)')
+output=replace(output,'o.filter(e=>e.city===k.city).length,` koşu · `','x.source===`loading`?`Yükleniyor`:o.filter(e=>e.city===k.city).length,` koşu · `')
+output='function __programState(x){const age=(Date.now()-Date.parse(x.fetchedAt))/60000;return !Number.isFinite(age)?"Program alındı":age>30?"Önbellekteki program":"Program alındı"}\n'+output
+output=replace(output,'children:`AT GEÇMİŞİ`','children:`KAYDEDİLMİŞ TAHMİN GEÇMİŞİ`')
+output=replace(output,'children:`Önceki yarışlar getiriliyor…`','children:`Kaydedilmiş program ve tahminler getiriliyor…`')
+output=replace(output,'function __raceAlternativeText(race,prediction){const a=','function __raceAlternativeText(race,prediction){if(!race?.horses?.length)return "Program yükleniyor; sürpriz değerlendirmesi henüz yapılamıyor.";const a=')
+output=replace(output,'o&&(0,j.jsxs)(j.Fragment,{children:[(0,j.jsxs)(`p`,{className:`report-note`','o&&(0,j.jsxs)(j.Fragment,{children:[o._delivery&&(0,j.jsx)(`p`,{role:`status`,className:`report-note`,children:`Son başarılı rapor: ${new Date(o._delivery.preparedAt).toLocaleString("tr-TR")}${o._delivery.stale?" · Güncelleme sürüyor; önbellekteki sonuçlar gösteriliyor.":""}`}),(0,j.jsxs)(`p`,{className:`report-note`')
+// Keep uncertain model coverage visible next to the weakest leg.
+output=replace(output,'children:__couponChanceText(r.estimatedChance)}),','children:__couponChanceText(r.estimatedChance)}),r.riskSummary&&(0,j.jsx)(`p`,{className:`coupon-risk`,children:`En kırılgan ayak: ${r.riskSummary.raceNo}. koşu · ${r.riskSummary.selectedRunners} at · hesaplanan kapsam %${(100*r.riskSummary.estimatedCoverage).toFixed(1)}`}),')
 const path=`/assets/index-coupon-v2-${hash(output)}.js`
 await writeFile('dist'+path,output)
 await writeFile('dist/assets/coupon-ui-v2.css','.coupon-leg-surprise{display:block!important;white-space:normal;line-height:1.5;font-size:11px;color:#9bdbc5;margin-top:8px;overflow-wrap:anywhere}.coupon-slip-leg .coupon-leg-surprise{padding:4px;max-width:100px;font-size:10px}')
