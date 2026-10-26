@@ -65,6 +65,9 @@ await copyFile('src/data/couponChance.js','dist/assets/coupon-chance-v1.js')
 output=replace(output,'children:`★ Sürpriz aday`','children:`★ Sürpriz / alternatif`')
 output=replace(output,'Ie?Ie.surpriseAssessment?.reason||`Favori dışındaki atlar incelendi; desteklenen aday olduğunda gerekçesi burada gösterilir.`:`Sürpriz aday ve gerekçesi, günlük AI analizi tamamlandığında burada görünür.`','__raceAlternativeText(k,Ie)')
 output='function __raceAlternativeText(race,prediction){const a=__legSurpriseSuggestion(race,prediction);return a.available?__surpriseSuggestionText(a)+". "+a.reason:a.reason}\n'+output
+const transport=await read('src/data/ngrokTransport.js'),transportFile='ngrok-transport-'+hash(transport)+'.js'
+await writeFile('dist/assets/'+transportFile,transport)
+output='import "./'+transportFile+'";\n'+output
 const path=`/assets/index-coupon-v2-${hash(output)}.js`
 await writeFile('dist'+path,output)
 await writeFile('dist/assets/coupon-ui-v2.css','.coupon-leg-surprise{display:block!important;white-space:normal;line-height:1.5;font-size:11px;color:#9bdbc5;margin-top:8px;overflow-wrap:anywhere}.coupon-slip-leg .coupon-leg-surprise{padding:4px;max-width:100px;font-size:10px}')

@@ -16,6 +16,21 @@ try {
    $meta.gatewayPid=$g.Id;$changes+='gateway_started'
   }
  }
+ if($cfg.preferredProvider -eq 'ngrok' -or $cfg.provider -eq 'ngrok'){
+  $ngrok=& 'D:\Apps\HorseRide\server\ensure-ngrok-public.ps1'
+  $meta=Get-Content -LiteralPath $metaPath -Raw | ConvertFrom-Json
+  if($ngrok.ready){
+   $ngrok | ConvertTo-Json | Set-Content 'data/maintenance/ngrok-setup-state.json' -Encoding UTF8
+   if($cfg.url -ne $ngrok.url){$cfg.previousUrl=$cfg.url;$cfg.url=$ngrok.url;$cfg.provider='ngrok';$cfg.temporary=$false;$cfg.verifiedAt=[DateTime]::UtcNow.ToString('o');$cfg | ConvertTo-Json | Set-Content 'data/maintenance/public-address.json' -Encoding UTF8}
+   @{checkedAt=[DateTime]::UtcNow.ToString('o');url=$cfg.url;provider='ngrok';externalOk=$true;automaticRecovery=$true;addressMayChange=$false} | ConvertTo-Json | Set-Content 'data/maintenance/public-watchdog.json' -Encoding UTF8
+   return
+  }
+  $ngrok | ConvertTo-Json | Set-Content 'data/maintenance/ngrok-setup-state.json' -Encoding UTF8
+  if($cfg.provider -eq 'ngrok'){
+   @{checkedAt=[DateTime]::UtcNow.ToString('o');url=$cfg.url;provider='ngrok';externalOk=$false;reason=$ngrok.reason;automaticRecovery=$true;addressMayChange=$false} | ConvertTo-Json | Set-Content 'data/maintenance/public-watchdog.json' -Encoding UTF8
+   return
+  }
+ }
  $tunnel=Get-CimInstance Win32_Process -Filter "ProcessId=$($meta.tunnelPid)" -ErrorAction SilentlyContinue
  if(-not $tunnel -or ($tunnel.CommandLine -and $tunnel.CommandLine -notlike '*cloudflared*')){
   $t=Start-Process 'D:\Tools\cloudflared.exe' -ArgumentList 'tunnel','--url','http://127.0.0.1:8793','--no-autoupdate' -WorkingDirectory 'D:\Apps\HorseRide' -WindowStyle Hidden -RedirectStandardOutput 'D:\Apps\HorseRide\data\maintenance\tunnel-recovery.stdout.log' -RedirectStandardError 'D:\Apps\HorseRide\data\maintenance\tunnel-recovery.stderr.log' -PassThru

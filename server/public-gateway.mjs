@@ -18,7 +18,7 @@ export function createPublicGateway({upstream='http://127.0.0.1:8788',root=defau
   const reply=(status,payload)=>{const transfer=jsonTransfer(payload,req.headers['accept-encoding']);res.writeHead(status,{...transfer.headers,'cache-control':'no-store','access-control-allow-origin':'*'});res.end(transfer.body)}
   try{
    const url=new URL(req.url,'http://localhost')
-   if(req.method==='OPTIONS'){res.writeHead(204,{'access-control-allow-origin':'*','access-control-allow-methods':'GET,HEAD,POST,OPTIONS','access-control-allow-headers':'content-type'});return res.end()}
+   if(req.method==='OPTIONS'){res.writeHead(204,{'access-control-allow-origin':'*','access-control-allow-methods':'GET,HEAD,POST,OPTIONS','access-control-allow-headers':'content-type,ngrok-skip-browser-warning'});return res.end()}
    if(url.pathname==='/api/health'){
     if(req.method!=='GET')return reply(405,{error:'Method not allowed'})
     const response=await fetcher(upstream+'/api/health',{signal:AbortSignal.timeout(5000)})
