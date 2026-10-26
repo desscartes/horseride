@@ -717,3 +717,11 @@ Son doğrulama:
 - Guardedproductionbuilderngroktransportu içerikhashliimporteder;eskiVitebuildyok.6transport/gatewaytestpassed;headerbaşkayabancıhostlara veyaassetleregitmez,Requestheaders/body/signal korunur. GatewayyeniCORSbaşlığınaizinverir. Model/tahmin geçmişi değişmedi.
 -26Ekim10:42Zkontrollüngrokrestart:PIDkimlikdoğrulamasıyla sadecentüneldurduruldu,watchdogyenidenbaşlattı,aynıURLvehealthpass. Raporngrok-restart-2026-10-26.json.Ücretsizhesapkotalarıgeçerli;PC/Internetkapalısınırıkorunur.
 - APK1.39/code40samepackagecom.horseride.local/samecertificate32f2695bd73e000c2eeb756058ff799da54d500cf4168676759c6d3b47a96b6f,releasebuildlint+signaturepassed.Telefonkurulumu/testibekliyor;webVisitSiteuyarısıilksefergörülebilir. GitHubyayınsonucuayrıdoğrulanmalı.
+
+
+## 26 Ekim — kapsamlı model ve arayüz denetimi
+- TAM_DENETIM_2026-10-26.md oluşturuldu: aktif TR/US modelleri, temel puanlayan yabancı ülkeler, gerçek yarış öncesi başarı, veri/eğitim kapsam farkları, adaylar ve sekiz öncelikli iş paketi. Aktif model veya geçmiş tahmin değiştirilmedi.
+- Aynı589yarışta model%29,88/piyasa%34,80 ilk at; Brier/logloss da piyasa lehine. 649sonuçlanmış kupon23tutan; bütçe ve örtüşme nedeniyle bu sonuç model üstünlüğü/ROI kanıtı değildir.
+- İzole222test:221pass/1fail; fail eski debut cümlesi regex beklentisi. Varsayılan test DB izolasyonu ve eski src/üretim patch build farkı açık.
+- Canlı API14:08TR civarı sağlık502/5sn,rapor/simülasyon/toplantı502/15sn; cachedŞanlıurfa kupon200/82ms. Supervisor kendine aitAPIyi yeniden başlatıyor; kesin kök neden henüz kanıtlanmadı. NgrokURL çalışması bu iç sorunu çözmüş sayılmaz.
+- Gerçek mobil/masaüstüUI:Şanlıurfaiki altılı×30/50/geniş ve sürprizler var; güncel yorumda idman+jokey sayımları var. Şehir değişiminde geçici0koşu/yanıltıcı sürpriz boşluğu, rapor yüklenmede, atgeçmişi aslında kaydedilmiş program/tahmin kayıtları. Kanıtlar data/maintenance/full-audit-2026-10-26/. FizikselAPKtesti doğrulanmadı.
