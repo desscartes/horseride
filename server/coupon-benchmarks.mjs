@@ -10,7 +10,7 @@ export function couponBenchmarkPairs(program,{now=new Date().toISOString(),budge
    if(races.some(r=>{const h=r.horses.filter(h=>!h.outOfRace);return !h.length||h.some(h=>typeof h.marketShare!=='number'||!Number.isFinite(h.marketShare)||h.marketShare<0)||!h.some(h=>h.marketShare>0)}))continue
    const market=races.map(r=>({...r,rankingSource:'prestart_market_reference',rankingMethod:'prestart_market_share_v1',horses:r.horses.map(h=>({...h,probability:h.marketShare}))}))
    for(const budget of budgets){const model=optimalHundredTicket(races,program.date,start.ordinal,{now,budget}),reference=optimalHundredTicket(market,program.date,start.ordinal,{now,budget,requiredRankingSource:'prestart_market_reference'});if(!model||!reference)continue
-    pairs.push({date:program.date,city,ordinal:start.ordinal,budget,capturedAt:now,scheduledStart:model.scheduledStart,entryFingerprint:analysisEntryFingerprint(races),sourceFetchedAt:program.fetchedAt,role:'prospective_same_budget_shadow_benchmark',model,market:reference,calibrated:false})
+    pairs.push({date:program.date,city,ordinal:start.ordinal,budget,capturedAt:now,scheduledStart:model.scheduledStart,entryFingerprint:analysisEntryFingerprint(races),sourceFetchedAt:program.fetchedAt,fields:races.map(r=>({raceNo:Number(r.no),names:r.horses.filter(h=>!h.outOfRace).map(h=>h.name)})),role:'prospective_same_budget_shadow_benchmark',model,market:reference,calibrated:false})
    }
   }
  }

@@ -1,3 +1,4 @@
+import {marketBlendShadow} from './market-blend-shadow.mjs'
 import {mkdir,writeFile,readFile} from 'node:fs/promises'
 import {remoteDeployment} from './deployment-role.mjs'
 import {join,resolve} from 'node:path'
@@ -36,9 +37,10 @@ export async function capturePrestart({output,origin=`http://127.0.0.1:${process
     const metadata=await metadataProvider(race)
     records.push({date,city:race.city,raceNo:race.no,capturedAt,scheduledStart:start,trainedThrough:metadata?.trainedThrough||null,country:metadata?.country||racingCountry(race.city)||'TR',modelVersion:race.rankingMethod||program.model,market:marketBenchmark(race,capturedAt,start),weather:weather||null,weatherUsable:weather?usableWeather({...weather,kind:'live_forecast',hourly:{time:[weather.validHourUTC],temperature_2m:[weather.temperatureC],precipitation:[weather.precipitationMm],wind_speed_10m:[weather.windKmh],relative_humidity_2m:[weather.humidityPercent]}},start):null,race})
   }
+  for(const row of records)row.marketBlendShadow=marketBlendShadow(row)
   await mkdir(output,{recursive:true})
   const file=join(output,`${capturedAt.replaceAll(':','-')}.json`)
-  await writeFile(file,JSON.stringify({capturedAt,records,paidAiRequested:false,scope:'Pre-start evidence only; market is a benchmark, never an input'},null,2),{flag:'wx'})
+  await writeFile(file,JSON.stringify({capturedAt,records,paidAiRequested:false,scope:'Pre-start evidence only; market benchmark and separately labeled fixed-half shadow; active prediction unchanged'},null,2),{flag:'wx'})
   return {file,records:records.length,marketBenchmarks:records.filter(r=>r.market).length,weather:records.filter(r=>r.weatherUsable).length}
 }
 async function captureSocialForCurrentProgram(){
@@ -49,5 +51,5 @@ async function captureSocialForCurrentProgram(){
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
  if(remoteDeployment())console.log('Pre-start captures are owned by the home server; local run skipped.')
- else {console.log(JSON.stringify(await capturePrestart({output:process.argv[2]||'data/external/prestart'})));try{console.log(JSON.stringify({pinnedStudies:await reportPinnedStudies()}))}catch(error){console.error('Pinned study report:',error.message)}const {captureApplicationTickets,settleApplicationPayouts}=await import('./application-report-service.mjs');console.log(JSON.stringify({applicationTickets:await captureApplicationTickets(),payouts:await settleApplicationPayouts()}));await captureSocialForCurrentProgram();await import('./capture-coupon-benchmarks.mjs');const {captureSimulation}=await import('./simulation-service.mjs');const {retrySqliteBusy}=await import('./sqlite-retry.mjs');console.log(JSON.stringify({simulation:await retrySqliteBusy(()=>captureSimulation())}))}
+ else {console.log(JSON.stringify(await capturePrestart({output:process.argv[2]||'data/external/prestart'})));try{console.log(JSON.stringify({pinnedStudies:await reportPinnedStudies()}))}catch(error){console.error('Pinned study report:',error.message)}const {captureApplicationTickets,settleApplicationPayouts}=await import('./application-report-service.mjs');console.log(JSON.stringify({applicationTickets:await captureApplicationTickets(),payouts:await settleApplicationPayouts()}));await captureSocialForCurrentProgram();await import('./capture-coupon-benchmarks.mjs');await import('./audit-coupon-benchmarks.mjs');const {captureSimulation}=await import('./simulation-service.mjs');const {retrySqliteBusy}=await import('./sqlite-retry.mjs');console.log(JSON.stringify({simulation:await retrySqliteBusy(()=>captureSimulation())}))}
 }
