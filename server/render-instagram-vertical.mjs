@@ -5,12 +5,12 @@ export async function renderVertical(draft,directory){
  await mkdir(directory,{recursive:true});const {chromium}=await import('../.migration/ui-audit-tools/node_modules/playwright/index.mjs'),browser=await chromium.launch({executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',headless:true});
  const photo=(await readFile('public/social/ganyan-campaign-v2.jpg')).toString('base64'),logo=(await readFile('public/brand/ganyan-icon.png')).toString('base64');
  const panels=draft?[
- {tag:draft.city,title:'PROGRAM HAZIR.\nSEÇİMLER MASADA.',body:`<h2>${draft.ticket.ordinal}. altılı · ${draft.ticket.cost.toFixed(2)} TL</h2>`+draft.ticket.legs.map(l=>`<p class="leg"><b>${l.raceNo}. koşu</b><strong>${l.horses.map(h=>h.number).join(' · ')}</strong></p>`).join(''),note:'Model seçimi · Ayrıntılar gönderide'},
+ {tag:draft.city,title:'PROGRAM HAZIR.\nSEÇİMLER MASADA.',body:`<h2>${draft.ticket.ordinal}. altılı</h2>`+draft.ticket.legs.map(l=>`<p class="leg"><b>${l.raceNo}. koşu</b><strong>${l.horses.map(h=>h.number).join(' · ')}</strong></p>`).join(''),note:'Model seçimi · Ayrıntılar gönderide'},
  {tag:draft.city,title:'MODELİN\nİLK ADAYI',body:`<h2>${draft.first.raceNo}. koşu · ${draft.first.number}</h2><h3>${esc(draft.first.name)}</h3><p>${esc(draft.first.reason)}</p>`,note:'Kesin kazanan veya garanti banko değildir.'},
  {tag:draft.city,title:'SÜRPRİZİ\nVERİYLE ARA.',body:draft.surprise?`<h2>${draft.surprise.raceNo}. koşu · ${draft.surprise.number}</h2><h3>${esc(draft.surprise.name)}</h3><p>${esc(draft.surprise.reason)}</p>`:'<h2>Uygun aday yok.</h2><p>Eksik bilgiyi varsayarak seçim üretmiyoruz.</p>',note:draft.tier==='limited_data'?'Sınırlı veri · Eksikler gönderi açıklamasında':'Mevcut yarış öncesi verilere dayanır.'}
  ]:[
- {tag:'GANYAN ZEKÂSI',title:'YARIŞI OKU.\nVERİYLE YORUMLA.',body:'<h2>Program belli olunca<br>analiz başlar.</h2><p>Şehir programı · Bütçeli kupon<br>İlk aday · Sürpriz adayı</p>',note:'Doğrulanmış veriler yeterliyse paylaşırız.'},
- {tag:'BÜTÇEYİ BAŞTAN BELİRLE',title:'HER KOŞUYU\nBANKO SANMA.',body:'<h2>Modelin ilk adayı<br>kesin kazanan değildir.</h2><p>Jokey, kilo, yarış geçmişi ve mevcut programı birlikte değerlendiririz.</p>',note:'Eksik alanları açıkça belirtiriz.'},
+ {tag:'GANYAN ZEKÂSI',title:'YARIŞI OKU.\nVERİYLE YORUMLA.',body:'<h2>Program belli olunca<br>analiz başlar.</h2><p>Şehir programı · Tahmin<br>İlk aday · Sürpriz adayı</p>',note:'Doğrulanmış veriler yeterliyse paylaşırız.'},
+ {tag:'BELİRSİZLİĞİ GÖZ ÖNÜNDE TUT',title:'HER KOŞUYU\nBANKO SANMA.',body:'<h2>Modelin ilk adayı<br>kesin kazanan değildir.</h2><p>Jokey, kilo, yarış geçmişi ve mevcut programı birlikte değerlendiririz.</p>',note:'Eksik alanları açıkça belirtiriz.'},
  {tag:'@ganyan_zekasi',title:'SEÇİMİ PAYLAŞ.\nSONUCUNU İZLE.',body:'<h2>Kupon · İlk aday · Sürpriz</h2><p>Kazananı da kaybedeni de izleriz.<br>Yeni şehir analizleri için takip et.</p>',note:'18+ · Kazanç garantisi yok.'}
  ];
  try{const page=await browser.newPage({viewport:{width:1080,height:1920}}),frames=[];

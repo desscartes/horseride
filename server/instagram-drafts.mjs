@@ -11,7 +11,7 @@ export function couponDraft(ticket,{now,programFetchedAt,evidenceComplete=false}
  if(ticket.budget!==instagramPlan.couponBudgetTL||!(ticket.cost>0&&ticket.cost<=ticket.budget)||ticket.officialVerified!==true||ticket.legs?.length!==6)return fail('invalid_ticket')
  if(new Set(ticket.legs.map(l=>l.raceNo)).size!==6||ticket.legs.some(l=>!l.horses?.length||l.horses.some(h=>!h.name||!Number.isInteger(h.number))))return fail('invalid_legs')
  const selection=ticket.legs.map(l=>`${l.raceNo}. koşu: ${l.horses.map(h=>h.number+' '+h.name).join(', ')}`).join('\n')
- const caption=`${ticket.date} · ${ticket.city} · ${ticket.ordinal}. altılı\n${ticket.cost.toFixed(2)} TL | ${ticket.budget} TL bütçe sınırı\n\n${selection}\n\nModelin bütçe içindeki seçimi; gerçekleşmiş başarı oranı veya kazanç garantisi değildir. 18+`
+ const caption=`${ticket.date} · ${ticket.city} · ${ticket.ordinal}. altılı\n${selection}\n\nModelin seçimi; gerçekleşmiş başarı oranı veya kazanç garantisi değildir. 18+`
  const key=[ticket.date,ticket.city,ticket.ordinal,ticket.budget].join('|')
  return {status:'draft',kind:'coupon',day:ticket.date,selectionKey:key,id:createHash('sha256').update(key+'|'+selection).digest('hex').slice(0,20),expiresAt:new Date(start-instagramPlan.minimumMinutesBeforeStart*60000).toISOString(),caption,publicationAllowed:false,requires:'Account authorization, image rendering, current entry revalidation and publication deduplication'}
 }
