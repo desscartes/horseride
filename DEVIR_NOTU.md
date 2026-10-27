@@ -749,3 +749,7 @@ Son doğrulama:
 
 ## 27 Ekim — beş öncelik uygulaması
 MODEL_IYILESTIRME_2026-10-27.md ayrıntılı durum. Sabit piyasa birleşimi gölge kaydı, yarış türü/pist kırılımı, kupon tam-alan sonuçlandırması, jokey-antrenör-at araştırma özellikleri eklendi. observed-load-v3 tamamlandı; ilk at artarken olasılık hatası kötüleşti, aktif model değişmedi. jockey-team-2026-10-27 sırada, geçmiş kayıtlar yeniden yazılmadı. 238test geçti; son rapor/girdi manifesti eklemeleri sözdizimi ayrıca kontrol edilmeli.
+
+
+## 27 Ekim — yürüyen kalibrasyon ve sıra adaleti
+506yarışta günlük geçmişten öğrenilen sıcaklık kalibrasyonu Brier/logloss değerlerini kötüleştirdi; devreye alınmadı. Ortak kilit üstüne öncelikli/30dk yaşlandırmalı bekleme kuyruğu eklendi; çocuk sahipliği ve canlı işler korunur. Eski çalışan süreçler kesilmedi. Ayrıntılar MODEL_IYILESTIRME_2026-10-27.md.

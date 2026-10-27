@@ -26,3 +26,10 @@ En güçlü mevcut referans piyasa. Öncelik, onu aşan kanıt bulmak; sırf alg
 | Diğer | 325 | %28,62 | %38,15 | %35,38 |
 | Stakes | 11 | %36,36 | %45,45 | %45,45 |
 Bu tabloda grup bazında en iyi görünen yöntemi seçip aynı tabloyu yeniden test sonucu diye sunmak seçim yanlılığı yaratır. Stakes örneği çok az. Ayrı uzman için tarihli eğitim/ileriye dönük doğrulama gerekir. Birleşim tüm gruplarda kazanç sağlamıyor.
+
+
+## Kalibrasyon ve kuyruk takibi
+- Ülke/model sürümü başına en az100önceki yarış/7gün ile günlük yürüyen sıcaklık kalibrasyonu eklendi. Aynı günün sonuçları topluca dışarıda bırakılır; farklı model sürümleri birbirinin fit verisini kullanmaz. Sabit aday sıcaklıklar1/.75/1.25/1.5/2. Sıralama değişmez.
+-506yarış/13gün tanısal sonucu: logloss1.877585 ->1.880295; Brier .808383 ->.809928. İkisi de kötüleşti. Etkinleştirilmedi. Bu arşiv daha önce incelendi; yeni bağımsız ileriye dönük kanıt olarak sunulmaz. Sonucun gerçek yayımlanma zamanları yeniden kurulmadı.
+- Ortak toplama kilidi korunarak bekleme kuyruğu eklendi: sabah/start hazırlığı öncelikli, normal işler sonra, araştırma sonra;30dk üstü bekleyenler en eski önce şeridine geçer. Çalışan iş kesilmez, miras alınmış çocuk kilidi kuyruğa girmeden korunur, ölü bekleyenler temizlenir. Eski süreçler eski kodla bitene kadar yeni sıra tam devralmış sayılmaz.
+- Jokey/antrenör araştırması bu kontrolde hâlâ mevcut kapsam denetiminin kilidini bekliyor. Sonuç uydurulmadı. Bir sonraki karar yeni özellik deneyinin gerçek sonuçları ve ileriye dönük piyasa birleşimi kayıtlarıyla verilecek.
