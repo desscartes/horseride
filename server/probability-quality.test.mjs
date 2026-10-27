@@ -8,3 +8,11 @@ test('missing starters or results are excluded; dead heats divide credit',()=>{l
 test('last served model per race counts once and poststart market is excluded',()=>{const outcome=new Map([['2026-01-02:A:1',new Map([['A',1],['B',0]])]]);const later={...row,modelVersion:'v2',capturedAt:'2026-01-02T10:30:00Z',market:{...row.market,capturedAt:row.scheduledStart}};const result=probabilityQuality([row,later],outcome);assert.equal(result.total.races,1);assert.equal(result.recorded,1);assert.equal(result.total.pairedMarketRaces,0);assert.deepEqual(Object.keys(result.byModel),['v2'])})
 
 test('descriptive groups use captured field and normalized confidence only',()=>{const outcome=new Map([['2026-01-02:A:1',new Map([['A',1],['B',0]])]]);const result=probabilityQuality([row],outcome);assert.equal(result.byFieldSize['2-7'].races,1);assert.equal(result.byFieldSize['12+'].races,0);assert.equal(result.byTopConfidence['50_plus'].races,1);assert.equal(result.byTopConfidence['below_30'].races,0);assert.equal(result.automaticModelChange,false)})
+
+test('fixed blend uses only verified paired market without changing captured predictions',()=>{
+ const before=JSON.stringify(row),outcomes=new Map([['2026-01-02:A:1',new Map([['A',1],['B',0]])]])
+ const r=probabilityQuality([row],outcomes),b=r.total.fixedHalfBlend
+ assert.equal(b.races,1);assert.equal(b.brier,.5);assert.equal(b.activated,false);assert.equal(JSON.stringify(row),before)
+ const invalid={...row,market:{...row.market,capturedAt:row.scheduledStart}}
+ assert.equal(probabilityQuality([invalid],outcomes).total.fixedHalfBlend.races,0)
+})

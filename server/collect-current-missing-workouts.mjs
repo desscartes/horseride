@@ -6,10 +6,12 @@ import {readServedProgram} from './served-program.mjs'
 import {workoutEvidence} from './workout-evidence.mjs'
 import {racingCountry} from './foreign-data.mjs'
 await acquireCollectionGate()
-const {buildHistoricalAnalysisContext,collectHorseWorkouts}=await import('./index.mjs')
+const {collectHorseWorkouts}=await import('./index.mjs')
+const {getProgramForAnalysis}=await import('./database.mjs')
 const day=localDay(),program=readServedProgram(day)
 if(!program?.races?.length)throw Error('Current program must be published first')
-const races=buildHistoricalAnalysisContext(program.races,day),reports=[]
+// Workout availability needs current profiles, not the full historical model context.
+const races=getProgramForAnalysis(day,'Tümü'),reports=[]
 let remaining=60
 for(const race of races.filter(r=>!racingCountry(r.city))){
  const ids=race.horses.filter(h=>!h.outOfRace&&!workoutEvidence(h,day).rows.length).map(h=>h.horseId).filter(Boolean).slice(0,remaining)

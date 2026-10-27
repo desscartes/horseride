@@ -737,3 +737,11 @@ Son doğrulama:
 - UI: kaydedilmiş program/tahmin geçmişi doğru adlandırıldı, program yaşı ve rapor önbelleği gösteriliyor, eski simülasyon günleri katlanıyor, kupon en zayıf ayak özeti ekleniyor. Simülasyon modülü içerik hashli dosyaya taşındı. Web üretim derlemesi başarılı; yeni APK/telefon doğrulaması yapılmadı.
 - Kalite: izole veritabanıyla 230/230 test geçti; npm build korumalı üretim patch builder kullanıyor, paketler sabitlendi, Windows CI eklendi. Son hash değişikliği sonrası üretim builder tekrar geçti. Tam mobil görsel kontrol hâlâ açık.
 - Başarı kanıtı değişmedi: aynı589yarışta model ilk at %29,88, piyasa %34,80. Yeni canlı test sonucu elde edilmeden iyileşme iddiası yok. Sekiz iş paketi tümüyle kapanmış değildir.
+
+
+## 27 Ekim — deney kilidi düzeltmesi ve alternatif model değerlendirmesi
+- observed-load-v3 önceki PID10924 artık çalışmıyordu; stderr EEXIST intelligence-training.lock gösterdi. Önceki bekliyor durum kaydı güncel değildi. run-load-research artık kilit edinme hatalarını da failed olarak kaydeder; ortak toplama kapısı alındıktan sonra yalnız ölü sahibin değişmemiş kilidini temizler. Canlı/bilinmeyen sahip korunur; çıkışta başka sahibin kilidi silinmez. Regresyon testleri eklendi. Deney PID7564 ile yeniden sıraya alındı, aktif model değişmedi.
+- collect-current-missing-workouts artık yalnız idman eksikliği için tüm tarihsel analiz bağlamını kurmaz; getProgramForAnalysis güncel kaynak profillerindeki doğrulanmış idmanları kullanır. Çalışmakta olan önceki iş kesilmedi; sonraki çağrılar yeni yolu kullanacak.
+- probability-quality: aynı yarış öncesi kayıt ve tam eşleşmiş alan üzerinde sabit %50 model + %50 piyasa tanısal karşılaştırması eklendi. Sonuçlara göre ağırlık optimizasyonu yapılmaz, bağımsız doğrulama değildir, model etkinleştirme yok. Canlıda denenmeden üstünlük iddiası yapılmaz.
+- 27 Ekim08:10TR jokey denetimi754atta10eksik: GB1/FR1/US8; TR eksik görünmüyor. FR bir jokey adı nokta. 07:45TR idman toplama60deneme54doğrulanmış kayıt; bu tüm atların eksiksizliği değildir.
+- Sabah işi PID536 sırada; intraday workout sahibi24064 korunuyor. Kilit beklemesi ve güncel tam kapsam raporu hâlâ açık. Dünkü3idman/4jokey eksik sayıları bugünün sayıları olarak kullanılmamalı.
