@@ -1,0 +1,5 @@
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import {couponDraft,introductionDraft,instagramPlan} from './instagram-drafts.mjs'
+const now='2026-10-27T08:00:00Z',ticket={date:'2026-10-27',city:'Ankara',ordinal:1,budget:50,cost:40,officialVerified:true,scheduledStart:'2026-10-27T09:00:00Z',legs:Array.from({length:6},(_,i)=>({raceNo:i+1,horses:[{name:'A',number:1}]}))},options={now,programFetchedAt:now,evidenceComplete:true}
+test('only local drafts; stale, late and unverified content blocked',()=>{assert.equal(instagramPlan.publishEnabled,false);assert.equal(introductionDraft().status,'draft');const d=couponDraft(ticket,options);assert.equal(d.status,'draft');assert.equal(d.publicationAllowed,false);assert.equal(d.id,couponDraft(ticket,options).id);assert.equal(couponDraft(ticket,{...options,evidenceComplete:false}).reason,'evidence_not_verified');assert.equal(couponDraft(ticket,{...options,programFetchedAt:'2026-10-27T07:00:00Z'}).reason,'program_not_fresh');assert.equal(couponDraft(ticket,{...options,now:'2026-10-27T08:45:00Z',programFetchedAt:'2026-10-27T08:45:00Z'}).reason,'too_late')})
