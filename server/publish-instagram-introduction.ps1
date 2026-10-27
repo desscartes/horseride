@@ -37,7 +37,8 @@ try{
   $phase='verify_existing'
   $media=Graph-Read ($entry.mediaId+'?fields=id,permalink,timestamp,caption')
   if($media.caption -ne $manifest.caption){throw 'Published caption mismatch'}
-  $entry.status='published_verified';$entry.permalink=$media.permalink;$entry.verifiedAt=[DateTime]::UtcNow.ToString('o');Save-Ledger $entry
+  $entry | Add-Member -NotePropertyName publishedAt -NotePropertyValue $media.timestamp -Force
+ $entry.status='published_verified';$entry.permalink=$media.permalink;$entry.verifiedAt=[DateTime]::UtcNow.ToString('o');Save-Ledger $entry
   Write-Output ($entry | ConvertTo-Json -Depth 8);exit 0
  }
  if($Mode -eq 'Verify'){throw 'No published media to verify'}
@@ -77,6 +78,7 @@ try{
  $phase='verify_published'
  $media=Graph-Read ($entry.mediaId+'?fields=id,permalink,timestamp,caption')
  if($media.caption -ne $manifest.caption){throw 'Published caption mismatch'}
+ $entry | Add-Member -NotePropertyName publishedAt -NotePropertyValue $media.timestamp -Force
  $entry.status='published_verified';$entry.permalink=$media.permalink;$entry.verifiedAt=[DateTime]::UtcNow.ToString('o');Save-Ledger $entry
  Write-Output ($entry | ConvertTo-Json -Depth 8)
 }catch{

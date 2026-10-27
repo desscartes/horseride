@@ -17,7 +17,7 @@ export async function publishMeetingReels(root,day,drafts){
   try{
    await mkdir(directory,{recursive:true});let manifest;try{manifest=await json(directory+'/manifest.json')}catch{}
    if(!manifest){
-    const rendered=await renderVertical(selection,directory);await writeFile(directory+'/story-status.json',JSON.stringify({status:'prepared_only',reason:'creator_account_api_stories_require_business',files:rendered.frames},null,2));
+    const rendered=await renderVertical(selection,directory);await writeFile(directory+'/story-status.json',JSON.stringify({status:'prepared_only',reason:'story_publisher_not_enabled',files:rendered.frames},null,2));
     const image=await json(parent+'/manifest.json'),video=await uploadVideo(id,rendered.video);await copyFile(parent+'/image.jpg',directory+'/image.jpg');
     manifest={id,account:'ganyan_zekasi',instagramId:'17841441483231653',mediaType:'REELS',kind:'meeting_reel',expiresAt:selection.expiresAt,planSignature:signature(selection),localImage:'image.jpg',imageUrl:image.imageUrl,imageSha256:image.imageSha256,localVideo:'reel.mp4',videoUrl:video.url,videoSha256:video.sha256,caption:selection.caption,altText:image.altText};await writeFile(directory+'/manifest.json',JSON.stringify(manifest,null,2));
    }

@@ -32,3 +32,16 @@ Sonuç gönderisi yalnız daha önce yayımlanmış seçimleri değerlendirir. B
 - Tanıtım Reels: https://www.instagram.com/reel/DfAkS2rkhJN/
 
 Reels ve Story resmî API kaynağı: https://www.postman.com/meta/instagram/documentation/6yqw8pt/instagram-api?entity=request-23987686-3a63181c-e5c6-4890-96dd-e4d425bef5e0
+
+
+## 27 Ekim güncellemesi: Business ve ertesi gün sonuç denetimi
+
+Hesap Instagram ayarlarından Business türüne geçirildi. Ek ücretli hizmet, reklam bütçesi veya abonelik açılmadı. Ekran kanıtı çalışma klasörünün `outputs/instagram/business-hesap-dogrulama.jpg` dosyasında; token ve sabit hesap kimliği API'den yeniden doğrulandı. Bu Graph uç noktası account_type alanını desteklemediği için hesap türü API'den doğrulandı diye sunulmaz; UI doğrulama kaydı ayrı tutulur. Story yayıncısı bu değişiklikle otomatik açılmış sayılmaz.
+
+Sonuç raporları aynı gece 23:00 yerine sonraki İstanbul takvim günü 09:00'dan itibaren değerlendirilir. Yalnız API'den doğrulanmış, gerçek yayın saati seçimlerin son geçerlilik saatinden önce olan gönderiler alınır. Eski yayınların gerçek saati Verify ile API medya zamanından tamamlanır; sonraki doğrulama saati yayın saati olarak kullanılmaz.
+
+Altılı, öne çıkan aday ve sürpriz sonuçları aynı şehir kartında birlikte gösterilir. Bir kategorideki başarı diğer kategorinin kaybını gizlemez. Tam alan eşleşmezse kıyas dışı, sonuç eksikse bekliyor yazılır. Tüm yayımlanmış seçimler çözümlenmeden günlük rapor yayımlanmaz; sıfır isabetli gün de aynı kuralla yayımlanır. Önceki gönderi bağlantıları açıklamada yer alır. AGF için yarış öncesi doğrulanmış kayıt yoksa favori dışı başarı iddiası yapılmaz. Maliyet başlığı, ikramiye veya kâr iddiası kullanılmaz.
+
+Rapor kartları 1080×1350, şehir başlıkları ve eşit büyüklükte sonuç alanlarıyla yerel olarak hazırlanır. Sonuç API kabı hazırlandıktan sonra manifest değişmez; işlem sonraki kontrolde aynı yayın defteriyle sürdürülür. Sonuç paylaşımı tarafsız geriye dönük değerlendirmedir; yeni bahis önerisi veya kazanç vaadi üretmez.
+
+Ek olarak `data/instagram/performance-report.json` son 7 ve 30 gün için tüm doğrulanmış yayınların örnek sayısını, isabet sayılarını, bekleyen ve kıyas dışı kayıtları ayrı tutar. Bu dönemsel rapor yerel dosyadır; ayrı tanıtım gönderisi üretmez.

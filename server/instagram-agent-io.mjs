@@ -37,10 +37,7 @@ export async function renderMeeting(draft,directory){
  }finally{await browser.close()}
 }
 
-export async function renderResults(day,result,directory){
- const {chromium}=await import('../.migration/ui-audit-tools/node_modules/playwright/index.mjs'),browser=await chromium.launch({executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',headless:true})
- try{const page=await browser.newPage({viewport:{width:1080,height:1350}});await page.setContent(`<meta charset="utf-8"><style>body{margin:0;box-sizing:border-box;width:1080px;height:1350px;padding:80px;background:#091e22;color:#eeeadd;font:34px Arial}h1{font-size:70px;color:#e3bd65}p{line-height:1.7}strong{color:#8ce1bd}footer{margin-top:90px;font-size:27px;color:#a2c6bf}</style><p>GANYAN ZEKÂSI · ${day}</p><h1>Paylaştık.<br>Sonucunu izliyoruz.</h1><p>Sonuçlanan şehir paketi: <strong>${result.settled}</strong><br>Tutan altılı: <strong>${result.couponWins}/${result.settled}</strong><br>Kazanan ilk aday: <strong>${result.firstWins}/${result.settled}</strong><br>Kazanan sürpriz: <strong>${result.surpriseWins}/${result.surpriseEvaluated}</strong><br>Sonuçlanan kuponların maliyeti: <strong>${result.totalCost.toFixed(2)} TL</strong><br>Alan değişimi nedeniyle kıyas dışı: ${result.excluded}</p><p>Resmî ikramiye doğrulanmadan kâr veya ROI hesaplamıyoruz.</p><footer>@ganyan_zekasi · 18+<br>Kazanan ve kaybeden tüm yayımlanmış seçimler.</footer>`);const path=directory+'/slide-1.jpg';await page.screenshot({path,type:'jpeg',quality:95});return [path]}finally{await browser.close()}
-}
+export {renderResultCards as renderResults} from './render-instagram-results.mjs'
 
 export async function verifyConnection(){await exec('C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe',['-NoProfile','-ExecutionPolicy','Bypass','-File',resolve('server/check-instagram-connection.ps1')],{windowsHide:true,timeout:90000,maxBuffer:20000})}
 
