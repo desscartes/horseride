@@ -18,3 +18,7 @@ Instagram Login resmi API yolu profesyonel hesap destekler; Facebook Sayfası zo
 Başlangıç: tanıtım, analiz yöntemi, dürüst sonuç takibi. Kupon taslağında sabit50TL üst bütçe, günde en çok1kupon hedefi. Bu operasyonel varsayılanlar performans üstünlüğü iddiası değildir. İlk starta en az30dk, program yaşı en çok15dk; yeterli kanıt yoksa paylaşım yerine bekleme. Kazanma yüzdesi kalibre edilmiş gibi yazılmaz. Gönderi görseli+metni+veri/model sürümü kaydedilir, çift yayın engellenir, çekilenler son anda doğrulanır, geç kalan taslak atılır. Bu son yayın kontrolleri henüz uygulanmadı; draft modülü yayın yapamaz.
 
 Kaynak: https://www.postman.com/meta/instagram/folder/6raa77c/instagram-api-with-instagram-login
+
+
+## 27 Ekim — hesap bağlantısı doğrulandı
+Instagram ganyan_zekasi profesyonel hesabı Facebook Ganyan Zekası Sayfasına bağlı. API SayfaID1361606213706671,InstagramID17841441483231653. Facebook Login for Business General/User token ve beş içerik izniyle kullanıcı doğrulaması başarılı. Token LOCALAPPDATA/HorseRide/Instagram/user-token.dpapi altında Windows CurrentUser DPAPI ve sınırlı ACL ile; sohbete/Git'e eklenmez. configure-instagram-local.ps1 standart Windows PowerShell Security modülünü tam yoldan başta yükler; WinForms callback ACL+DPAPI roundtrip örnek veriyle geçti. Token süresi/yenileme, resim için erişilebilir HTTPS adresi ve yayın/deduplication akışı hâlâ açık. publishEnabled false. İlk tanıtım kartı yerelde hazırlandı, yayımlanmadı.
