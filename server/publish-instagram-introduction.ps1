@@ -1,7 +1,7 @@
-param([ValidateSet('Prepare','Publish','Verify')][string]$Mode='Prepare')
+param([ValidateSet('Prepare','Publish','Verify')][string]$Mode='Prepare',[ValidatePattern('^[a-z0-9-]{1,90}$')][string]$PublicationId='introduction-v1')
 $ErrorActionPreference='Stop'
 Import-Module (Join-Path $PSHOME 'Modules\Microsoft.PowerShell.Security\Microsoft.PowerShell.Security.psd1') -ErrorAction Stop
-$directory='D:\Apps\HorseRide\data\instagram\introduction-v1'
+$directory=Join-Path 'D:\Apps\HorseRide\data\instagram' $PublicationId
 $ledgerPath=Join-Path $directory 'publication.json'
 $manifestPath=Join-Path $directory 'manifest.json'
 $lockPath=Join-Path $directory 'publish.lock'
@@ -12,8 +12,10 @@ function Graph-Write($path,$values){$parts=foreach($key in $values.Keys){[uri]::
 try{
  $lock=[IO.File]::Open($lockPath,[IO.FileMode]::OpenOrCreate,[IO.FileAccess]::ReadWrite,[IO.FileShare]::None)
  $manifest=Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
- if($manifest.id -ne 'introduction-v1' -or $manifest.account -ne 'ganyan_zekasi' -or $manifest.instagramId -ne '17841441483231653' -or $manifest.imageUrl -notmatch '^https://raw\.githubusercontent\.com/desscartes/horseride/[a-f0-9]{40}/public/social/ganyan-introduction-v1\.jpg$'){throw 'Invalid fixed introduction manifest'}
- if((Get-FileHash -LiteralPath 'D:\Apps\HorseRide\public\social\ganyan-introduction-v1.jpg' -Algorithm SHA256).Hash.ToLowerInvariant() -ne $manifest.imageSha256){throw 'Artwork hash mismatch'}
+ if($manifest.id -ne $PublicationId -or $manifest.account -ne 'ganyan_zekasi' -or $manifest.instagramId -ne '17841441483231653' -or $manifest.imageUrl -notmatch '^https://raw\.githubusercontent\.com/desscartes/horseride/[a-f0-9]{40}/public/social/[a-z0-9-]+\.jpg$'){throw 'Invalid fixed introduction manifest'}
+ $localImage=if($manifest.localImage){Join-Path $directory $manifest.localImage}else{'D:\Apps\HorseRide\public\social\ganyan-introduction-v1.jpg'}
+ if($manifest.localImage -and $manifest.localImage -ne 'image.jpg'){throw 'Invalid local image name'}
+ if((Get-FileHash -LiteralPath $localImage -Algorithm SHA256).Hash.ToLowerInvariant() -ne $manifest.imageSha256){throw 'Artwork hash mismatch'}
  $manifestHash=(Get-FileHash -LiteralPath $manifestPath -Algorithm SHA256).Hash
  $entry=$null
  if(Test-Path -LiteralPath $ledgerPath){$entry=Get-Content -LiteralPath $ledgerPath -Raw -Encoding UTF8 | ConvertFrom-Json;if($entry.manifestHash -ne $manifestHash){throw 'Existing publication content changed'}}
@@ -34,7 +36,19 @@ try{
  if($Mode -eq 'Verify'){throw 'No published media to verify'}
  if(-not $entry){
   $phase='create_container'
-  $created=Graph-Write ($manifest.instagramId+'/media') @{image_url=$manifest.imageUrl;caption=$manifest.caption;alt_text=$manifest.altText}
+  if($manifest.images -and $manifest.images.Count -gt 1){
+   if($manifest.images.Count -gt 3){throw 'Too many slides'}
+   $children=@()
+   foreach($image in $manifest.images){
+    if($image.localName -notmatch '^slide-[123]\.jpg$' -or $image.url -notmatch '^https://raw\.githubusercontent\.com/desscartes/horseride/[a-f0-9]{40}/public/social/[a-z0-9-]+\.jpg$'){throw 'Invalid slide'}
+    if((Get-FileHash -LiteralPath (Join-Path $directory $image.localName) -Algorithm SHA256).Hash.ToLowerInvariant() -ne $image.sha256){throw 'Slide hash mismatch'}
+    $child=Graph-Write ($manifest.instagramId+'/media') @{image_url=$image.url;is_carousel_item='true';alt_text=$manifest.altText}
+    $children+=$child.id
+   }
+   $created=Graph-Write ($manifest.instagramId+'/media') @{media_type='CAROUSEL';children=($children -join ',');caption=$manifest.caption}
+  }else{
+   $created=Graph-Write ($manifest.instagramId+'/media') @{image_url=$manifest.imageUrl;caption=$manifest.caption;alt_text=$manifest.altText}
+  }
   if($created.id -notmatch '^\d+$'){throw 'Invalid container response'}
   $entry=[pscustomobject]@{id=$manifest.id;manifestHash=$manifestHash;account=$manifest.account;status='container_created';containerId=$created.id;mediaId=$null;permalink=$null;createdAt=[DateTime]::UtcNow.ToString('o');verifiedAt=$null}
   Save-Ledger $entry
@@ -45,6 +59,7 @@ try{
  $entry.status='ready';Save-Ledger $entry
  if($Mode -eq 'Prepare'){Write-Output ($entry | ConvertTo-Json -Depth 8);exit 0}
  # Persist uncertainty BEFORE the request. A timeout never causes a blind duplicate POST.
+ if($manifest.expiresAt -and [DateTime]::UtcNow -ge [DateTime]::Parse($manifest.expiresAt).ToUniversalTime()){throw 'Publication expired'}
  $phase='publish'
  $entry.status='publishing_unknown';Save-Ledger $entry
  $published=Graph-Write ($manifest.instagramId+'/media_publish') @{creation_id=$entry.containerId}

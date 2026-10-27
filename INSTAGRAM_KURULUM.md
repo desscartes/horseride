@@ -31,3 +31,15 @@ Token debug doğrulaması: doğru app/account/scopes, ilk token27Ekim19:00UTC/22
 
 ## Uzun süreli yetkilendirme doğrulandı
 27Ekim18:02UTC canlı debug_token ve hesap kimliği doğrulaması başarılı. Token bitiş26Aralık2026 17:44:41UTC/20:44:41Türkiye. Şifreli CurrentUser DPAPI kaydı; App Secret kalıcı saklanmadı. Token süresiz değildir; geçerlilik/izin değişimi ve iptal durumları günlük otomasyonda ayrıca kontrol edilmeli. İlk tanıtım gönderisi yayında; günlük kupon yayımlama henüz etkin değil.
+
+
+## Otomatik şehir yayını — etkin
+HorseRide-Instagram-Agent Windows görevi5dk aralıkla mevcut Windows kullanıcısının interaktif oturumunda çalışır. Codex/sohbet açık gerekmez; Windows kullanıcısı oturum açmış ve bilgisayar/internet çalışır olmalı. Günlük çalışma ücretli AI isteği yapmaz. config:data/instagram/agent-config.json; durum:data/instagram/agent-status.json. Durdurma: config.enabled=false veya Windows görevini devre dışı bırak.
+
+Politika:50TL üst bütçe, şehir başına günde bir3kartlık carousel, günde en çok4şehir. İlk şehir koşusuna30–90dk kala; program15dk/kapsam raporu30dk içinde ve aynı program zaman damgası+at/jokey/kilo/start parmak izi. Yalnız doğrulanmış aktif model ve seçilen6ayağın servingReady durumu. Yeterli piyasa eşleşmesi yoksa sürpriz uydurulmaz. Gerçek kazanma olasılığı veya güvenilirlik üstünlüğü iddiası yok. Üçkart:kupon/ilkaday/sürpriz, finalveri tekrar kontrolü,sondakikadeğişimde yayın durur. Kayıtlıaynıpost yinelenmez;belirsizPOSTsonucunda yenidenpaylaşılmaz. Öncedenbilinmeyenuygunkoşu30dkpenceresinikaçırırsasonradanyayımlanmaz.
+
+DinamikJPEG'ler ayrı data/instagram/media-repo klonundan yalnız instagram-media dalına gitpushile gider; çalışma ağacının main dalı değişmez. HTTPsha256ve içerik türü kontrolü;PSyayınAPI'si DPAPIsecretı yalnızişlemde çözer. Bu dosyalar kamuya açık marka/tahmin görselleridir; token ve veritabanı yayımlanmaz.
+
+Sonuçlar:23:00TRsonrası veyaertesi gün yalnız sonuçları tamamlanan yayımlanmışseçimler için birgünlükrapor. Kupon/ilkaday/sürpriz ayrı sayılır;alan değişimiyapan kuponlar kıyasdışı;ikramiyedoğrulanmadanROI/kâr yok. Kayıtlar kaybedenleri de kapsar. Bekleyenresmîsonuçtamatamamlandıdenmez.
+
+Tanıtım afişi imagegenile hazırlandı;normalorganikpost,ücretlireklamdeğil. MedyaID18133288342764719; https://www.instagram.com/p/DfAe7jClD-7/ APIcaption/permalink doğrulandı. İlkagentçalışması27Ekim18:20UTC program_stale nedeniylebilerekkuponyayımlamadı;73koşuda servingReady0. Otomasyonetkinolmasıveri ve başarının hazır olduğu anlamına gelmez.247test geçti;üçcarouselkartı sentetikQAile taşmakontrolünden geçti veörnekler yayımlanmadı.

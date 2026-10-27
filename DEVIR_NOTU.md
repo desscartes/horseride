@@ -757,3 +757,7 @@ MODEL_IYILESTIRME_2026-10-27.md ayrıntılı durum. Sabit piyasa birleşimi göl
 
 ## 27 Ekim — kupon girdi bütünlüğü ve debut ayrımı
 Eksik/geçersiz puanlı aktif atlar filtrelenip kupon üretilemez; tüm alan ve tekil kimlik gerekiyor. maidenEvidence debut durumunu açık taşır. Ayrıntılı sınıf ailesi raporu eklendi.243test geçti. Jockey-team9280 günlük bakım23928 kilidini bekliyor; bakım training_pedigree aşamasında, geçmiş veri/ikramiye toplama zaman aşımı var. MODEL_IYILESTIRME_2026-10-27.md güncellendi.
+
+
+## Instagram yerel otomasyon etkin
+HorseRide-Instagram-Agent5dk;50TLşehirpaketi3kart/şehir/gün,max4şehir. Kritikveri/kapsamparmakizi/tazelik/startöncesikontroller;Codexgerekmez.27Ekimilkçalışmaprogram_stalebloklu,veriyeterliolmadığındapaylaşımyok. Sonuçözeti23TRsonrasıresmîsonuçlartamamsa. Reklamtanıtımpostuorganikyayımlandı:https://www.instagram.com/p/DfAe7jClD-7/ .247test,3kartQA. Ayrıntı INSTAGRAM_KURULUM.md. Güncelmodel/veriboşluklarıhâlâaçık.
