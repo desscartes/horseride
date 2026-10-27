@@ -22,3 +22,8 @@ Kaynak: https://www.postman.com/meta/instagram/folder/6raa77c/instagram-api-with
 
 ## 27 Ekim — hesap bağlantısı doğrulandı
 Instagram ganyan_zekasi profesyonel hesabı Facebook Ganyan Zekası Sayfasına bağlı. API SayfaID1361606213706671,InstagramID17841441483231653. Facebook Login for Business General/User token ve beş içerik izniyle kullanıcı doğrulaması başarılı. Token LOCALAPPDATA/HorseRide/Instagram/user-token.dpapi altında Windows CurrentUser DPAPI ve sınırlı ACL ile; sohbete/Git'e eklenmez. configure-instagram-local.ps1 standart Windows PowerShell Security modülünü tam yoldan başta yükler; WinForms callback ACL+DPAPI roundtrip örnek veriyle geçti. Token süresi/yenileme, resim için erişilebilir HTTPS adresi ve yayın/deduplication akışı hâlâ açık. publishEnabled false. İlk tanıtım kartı yerelde hazırlandı, yayımlanmadı.
+
+
+## 27 Ekim — ilk API yayını başarılı
+İlk tanıtım medyaID18065180756716709,permalink https://www.instagram.com/p/DfAc0Z4lKrM/ . API caption ve permalink doğrulandı. Görsel JPEG1080x1350, yalnız marka tanıtım resmi GitHubpublic/social altında sabit commitURL'den200image/jpeg doğrulandı. publish-instagram-introduction.ps1 ayrı Prepare/Publish/Verify modları, dosya kilidi, içerik hashine bağlı yayın günlüğü; belirsiz publish sonucunda kör POST tekrarı engellenir. Bu tek gönderi akışı; günlük kupon scheduler tamamlanmadı.
+Token debug doğrulaması: doğru app/account/scopes, ilk token27Ekim19:00UTC/22:00TR bitecek. extend-instagram-token-local.ps1 App Secretı yalnız gizli yerel alanda alır; uzun tokenı doğrulamadan eskisini değiştirmez, App Secretı kalıcı saklamaz. Kullanıcı girişine ihtiyaç var.
