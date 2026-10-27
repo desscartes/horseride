@@ -1,6 +1,7 @@
 param([ValidateSet('Prepare','Publish','Verify')][string]$Mode='Prepare',[ValidatePattern('^[a-z0-9-]{1,90}$')][string]$PublicationId='introduction-v1')
 $ErrorActionPreference='Stop'
 Import-Module (Join-Path $PSHOME 'Modules\Microsoft.PowerShell.Security\Microsoft.PowerShell.Security.psd1') -ErrorAction Stop
+Import-Module (Join-Path $PSHOME 'Modules\Microsoft.PowerShell.Utility\Microsoft.PowerShell.Utility.psd1') -ErrorAction Stop
 $directory=Join-Path 'D:\Apps\HorseRide\data\instagram' $PublicationId
 $ledgerPath=Join-Path $directory 'publication.json'
 $manifestPath=Join-Path $directory 'manifest.json'
@@ -13,6 +14,12 @@ try{
  $lock=[IO.File]::Open($lockPath,[IO.FileMode]::OpenOrCreate,[IO.FileAccess]::ReadWrite,[IO.FileShare]::None)
  $manifest=Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
  if($manifest.id -ne $PublicationId -or $manifest.account -ne 'ganyan_zekasi' -or $manifest.instagramId -ne '17841441483231653' -or $manifest.imageUrl -notmatch '^https://raw\.githubusercontent\.com/desscartes/horseride/[a-f0-9]{40}/public/social/[a-z0-9-]+\.jpg$'){throw 'Invalid fixed introduction manifest'}
+ $isReel=$manifest.mediaType -eq 'REELS'
+ if($manifest.mediaType -and -not $isReel){throw 'Unsupported media type'}
+ if($isReel){
+  if($manifest.localVideo -ne 'reel.mp4' -or $manifest.videoUrl -notmatch '^https://raw\.githubusercontent\.com/desscartes/horseride/[a-f0-9]{40}/public/social/[a-z0-9-]+\.mp4$'){throw 'Invalid reel manifest'}
+  if((Get-FileHash -LiteralPath (Join-Path $directory 'reel.mp4') -Algorithm SHA256).Hash.ToLowerInvariant() -ne $manifest.videoSha256){throw 'Video hash mismatch'}
+ }
  $localImage=if($manifest.localImage){Join-Path $directory $manifest.localImage}else{'D:\Apps\HorseRide\public\social\ganyan-introduction-v1.jpg'}
  if($manifest.localImage -and $manifest.localImage -ne 'image.jpg'){throw 'Invalid local image name'}
  if((Get-FileHash -LiteralPath $localImage -Algorithm SHA256).Hash.ToLowerInvariant() -ne $manifest.imageSha256){throw 'Artwork hash mismatch'}
@@ -36,7 +43,9 @@ try{
  if($Mode -eq 'Verify'){throw 'No published media to verify'}
  if(-not $entry){
   $phase='create_container'
-  if($manifest.images -and $manifest.images.Count -gt 1){
+  if($isReel){
+   $created=Graph-Write ($manifest.instagramId+'/media') @{media_type='REELS';video_url=$manifest.videoUrl;caption=$manifest.caption;share_to_feed='true';thumb_offset='1000'}
+  }elseif($manifest.images -and $manifest.images.Count -gt 1){
    if($manifest.images.Count -gt 3){throw 'Too many slides'}
    $children=@()
    foreach($image in $manifest.images){

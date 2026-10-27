@@ -1,0 +1,7 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {canonicalEntries,publicationEntriesMatch} from './publication-entry-confirmation.mjs';import {analysisEntryFingerprint as hash} from './analysis-entry-policy.mjs';
+const rows=[{city:'A',no:1,horses:[{no:2,name:'B',handicapRating:44},{no:1,name:'A',weight:55,jockey:'J',handicapRating:null}]}];
+test('entry comparison normalizes CSV handicap columns and ordering without changing source objects',()=>{const raw=structuredClone(rows);raw[0].horses.reverse();const h=raw[0].horses.find(h=>h.no===2);delete h.handicapRating;h.sourceData={headers:['H'],values:['44']};assert.equal(hash(canonicalEntries(rows)),hash(canonicalEntries(raw)));assert.equal(h.handicapRating,undefined)});
+test('changed jockey, weight, withdrawal or removed runner rejects saved entry equality',()=>{for(const patch of [{jockey:'X'},{weight:54},{outOfRace:true}]){const other=structuredClone(rows);Object.assign(other[0].horses[1],patch);assert.notEqual(hash(canonicalEntries(rows)),hash(canonicalEntries(other)))}const other=structuredClone(rows);other[0].horses.pop();assert.notEqual(hash(canonicalEntries(rows)),hash(canonicalEntries(other)))});
+
+test('parent identity and calendar date changes invalidate publication confirmation',()=>{for(const field of ['sire','dam']){const other=structuredClone(rows);other[0].horses[0][field]='NEW';assert.equal(publicationEntriesMatch(rows,other),false)}const other=structuredClone(rows);other[0].scheduledDate='2026-10-28';assert.equal(publicationEntriesMatch(rows,other),false)});

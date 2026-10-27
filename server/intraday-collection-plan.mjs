@@ -13,6 +13,8 @@ export function collectionPlan(day){
  for(const h of ['06','10','18'])add(`gap-audit-${h}`,`${h}:30`,'server/audit-current-runner-gaps.mjs',[day])
  for(const h of ['06','08','10','12','14','16','18','20','22'])add(`readiness-${h}`,`${h}:45`,'server/audit-preparation-readiness.mjs',[day])
  for(const h of ['06','08','10','12','14','16','18','20','22'])add(`comments-${h}`,`${h}:35`,'server/refresh-fluent-commentaries.mjs')
+ for(const h of ['06','10','14','18','22'])add(`publication-cl-backfill-${h}`,`${h}:25`,'server/collect-publication-country-backfill.mjs',[day])
+ for(const h of ['08','12','16','20']){add(`publication-us-workouts-${h}`,`${h}:20`,'server/collect-equibase-workouts.mjs');add(`publication-history-${h}`,`${h}:25`,'server/collect-country-recent-history.mjs',[day,String(1+(['08','12','16','20'].indexOf(h)%3))]);add(`publication-source-probe-${h}`,`${h}:30`,'server/probe-concepcion-sources.mjs');add(`publication-needs-${h}`,`${h}:50`,'server/audit-publication-needs.mjs',[day])}
  return jobs.sort((a,b)=>a.time.localeCompare(b.time)||a.id.localeCompare(b.id))
 }
 export function nextCollectionJob(day,minute,state={}){

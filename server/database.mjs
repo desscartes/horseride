@@ -1,3 +1,4 @@
+import {racingCountry as historicalCountry} from './foreign-data.mjs'
 import {maintenanceArchiveSummary as summarizeMaintenanceArchive} from './maintenance-archive-summary.mjs'
 import { createHash } from 'node:crypto'
 import {ensureForecastModelIdentity} from './forecast-model-identity.mjs'
@@ -547,8 +548,12 @@ export function saveHistoricalRace(date,race,results) {
   database.prepare(`INSERT INTO historical_race_data VALUES(?,?,?,?,?,?) ON CONFLICT(date,city,race_no) DO UPDATE SET race_json=excluded.race_json,results_json=excluded.results_json,fetched_at=excluded.fetched_at WHERE historical_race_data.race_json IS NOT excluded.race_json OR historical_race_data.results_json IS NOT excluded.results_json`).run(date,race.city,race.no,JSON.stringify(race),JSON.stringify([...results]),new Date().toISOString())
 }
 
-export function listHistoricalRaces() {
-  return Array.from(database.prepare('SELECT * FROM historical_race_data ORDER BY date,city,race_no').iterate(),row=>({date:row.date,...JSON.parse(row.race_json),results:new Map(JSON.parse(row.results_json))}))
+export function listHistoricalRaces({since=null,before=null,countries=null}={}) {
+  const where=[],params=[]
+  if(since){where.push('date>=?');params.push(since)}
+  if(before){where.push('date<?');params.push(before)}
+  if(countries){const cities=database.prepare('SELECT DISTINCT city FROM historical_race_data').all().map(r=>r.city).filter(city=>countries.includes(historicalCountry(city)||'TR'));if(!cities.length)return [];where.push('city IN ('+cities.map(()=>'?').join(',')+')');params.push(...cities)}
+  return Array.from(database.prepare('SELECT * FROM historical_race_data'+(where.length?' WHERE '+where.join(' AND '):'')+' ORDER BY date,city,race_no').iterate(...params),row=>({date:row.date,...JSON.parse(row.race_json),results:new Map(JSON.parse(row.results_json))}))
 }
 export function historicalRaceDates(){return database.prepare('SELECT DISTINCT date FROM historical_race_data ORDER BY date').all().map(r=>r.date)}
 // Export one calendar day without retaining the complete archive's raw JSON

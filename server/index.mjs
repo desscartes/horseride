@@ -1544,7 +1544,7 @@ function buildHistoricalAnalysisContext(races, targetDate, {archive=null}={}) {
   const fieldRows = [...new Map(listBacktestEntries(sinceDate, targetDate).map(row=>[`${row.date}:${normalizeMeetingName(row.city)}:${row.raceNo}:${performanceKey(row.horseName)}`,row])).values()]
   const requestedCountries=new Set(races.map(r=>racingCountry(r.city)||'TR'))
   const externalWorkouts=requestedCountries.has('US')?foreignWorkoutRecords():[]
-  const historicalArchive=archive??listHistoricalRaces()
+  const historicalArchive=archive??listHistoricalRaces({since:sinceDate,before:targetDate,countries:[...new Set([...requestedCountries,'TR'])]})
   const analysisHistory=historicalArchive.filter(r=>requestedCountries.has(racingCountry(r.city)||'TR')&&r.date>=sinceDate&&r.date<targetDate)
   const runsByHorse=new Map()
   for(const old of analysisHistory)for(const runner of old.horses){
@@ -2630,4 +2630,4 @@ if (process.env.HORSERIDE_NO_LISTEN !== '1') {
   setInterval(()=>settleForecasts().catch(error=>console.error('Forecast settlement:',error.message)),3600000).unref()
   }
 }
-export { locallyRankRaces, settleForecasts, getValidDailyAnalysis, getOrCreateDailyAnalysis, buildFreshProgramPayload, buildHistoricalAnalysisContext, parseAnalysisOutput, createDailyAnalysis, performanceSummary, summarizeHorsePerformance, collectHistoricalDay, scoreRace, parseCsv, parseOfficialRaceResults, collectHorseWorkouts }
+export { fetchProgram, locallyRankRaces, settleForecasts, getValidDailyAnalysis, getOrCreateDailyAnalysis, buildFreshProgramPayload, buildHistoricalAnalysisContext, parseAnalysisOutput, createDailyAnalysis, performanceSummary, summarizeHorsePerformance, collectHistoricalDay, scoreRace, parseCsv, parseOfficialRaceResults, collectHorseWorkouts }

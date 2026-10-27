@@ -9,6 +9,7 @@ try{
  const payload=await retrySqliteBusy(()=>buildFreshProgramPayload(new Date(`${date}T12:00:00`),'Tümü'))
  publishProgram(date,payload)
  process.send?.({ok:true});process.disconnect?.()
+ if(process.env.HORSERIDE_PROGRAM_ONLY==='1')process.exit(0)
  const {spawnSync}=await import('node:child_process')
  const jockeyRefresh=spawnSync(process.execPath,['--use-system-ca','server/refresh-jockey-context.mjs',date],{windowsHide:true,stdio:'inherit',timeout:180000,env:process.env})
  if(jockeyRefresh.status!==0)console.error('Jockey context refresh incomplete:',jockeyRefresh.error?.message||jockeyRefresh.status)

@@ -1,0 +1,5 @@
+import {mkdir,writeFile} from 'node:fs/promises'
+import {load} from 'cheerio'
+const directory='data/external/concepcion-source-probe';await mkdir(directory,{recursive:true});const report={checkedAt:new Date().toISOString(),sources:[],integrated:false}
+for(const path of ['carreras-proximos-programas','carreras-aprontes','carreras-ultimos-resultados']){const url='https://concepcion.elturf.com/'+path;try{const r=await fetch(url,{signal:AbortSignal.timeout(15000)});if(!r.ok)throw Error('HTTP '+r.status);const html=await r.text(),$=load(html);await writeFile(directory+'/'+path+'.html',html);report.sources.push({url,status:r.status,title:$('title').text(),tables:$('table').length,publicFiles:$('a[href]').toArray().map(a=>new URL($(a).attr('href'),url).href).filter(u=>/\.(pdf|csv)(?:$|\?)/i.test(u)),scripts:$('script[src]').toArray().map(a=>new URL($(a).attr('src'),url).href),note:'Discovery only; no horse match or training feature inferred from page shell'})}catch(e){report.sources.push({url,error:e.message})}}
+await writeFile(directory+'/report.json',JSON.stringify(report,null,2));console.log(JSON.stringify(report))
