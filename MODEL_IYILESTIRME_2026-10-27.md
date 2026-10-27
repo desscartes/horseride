@@ -33,3 +33,11 @@ Bu tabloda grup bazında en iyi görünen yöntemi seçip aynı tabloyu yeniden 
 -506yarış/13gün tanısal sonucu: logloss1.877585 ->1.880295; Brier .808383 ->.809928. İkisi de kötüleşti. Etkinleştirilmedi. Bu arşiv daha önce incelendi; yeni bağımsız ileriye dönük kanıt olarak sunulmaz. Sonucun gerçek yayımlanma zamanları yeniden kurulmadı.
 - Ortak toplama kilidi korunarak bekleme kuyruğu eklendi: sabah/start hazırlığı öncelikli, normal işler sonra, araştırma sonra;30dk üstü bekleyenler en eski önce şeridine geçer. Çalışan iş kesilmez, miras alınmış çocuk kilidi kuyruğa girmeden korunur, ölü bekleyenler temizlenir. Eski süreçler eski kodla bitene kadar yeni sıra tam devralmış sayılmaz.
 - Jokey/antrenör araştırması bu kontrolde hâlâ mevcut kapsam denetiminin kilidini bekliyor. Sonuç uydurulmadı. Bir sonraki karar yeni özellik deneyinin gerçek sonuçları ve ileriye dönük piyasa birleşimi kayıtlarıyla verilecek.
+
+
+## Sonraki beş iş uygulaması — 27 Ekim
+1. Jokey-team işi önceki PID9356 çalışmadığı doğrulanarak PID9280 ile yeniden sıraya alındı. Ortak kapının sahibi günlük bakım23928, eğitim soy aşamasında. Bakımda geçmiş alan/ikramiye toplama zaman aşımları var; araştırmanın tamamlandığı söylenemez.
+2. Olasılık raporuna mevcut raceClass sözlüğüyle ayrıntılı sınıf ailesi kırılımı eklendi; koşullu, satış/claiming, allowance, sınıf numaralı koşular gibi diğer grubunun içi artık ayrı raporlanır. Yeni rapor çalıştırıldı.
+3. maidenEvidence içine açık debutEvidence eklendi: unknown/verified_debut/observed_prior_start, çelişkili kariyer bayrağı, idman/soy/jokey kapsamı. Yeni ayrı kazanma modeli eğitilmiş değildir; doğrulanmamış kariyer eksi puan veya ilk start kanıtı sayılmaz.
+4. Yeni kupon optimizasyonu tüm aktif atların geçerli puanı ve tekil adı/numarası olmadan çalışmaz. Önceden eksik puanlı atı filtreleyip kalan alanla kupon üretme açığı kapatıldı. Eski kupon geçmişi değiştirilmez. Bu giriş bütünlüğü kontrolüdür; tek başına olasılık kalibrasyonu veya başarı garantisi değildir.
+5. Eşit bütçeli ileriye dönük kıyas otomasyonu mevcut; sonuç bekleyen örnekler tamamlanmış sayılmıyor. Yeni değişikliklerle243test geçti. Aktif model aynı kaldı; kaynak boşlukları ve deney sonuçları hâlâ açık.

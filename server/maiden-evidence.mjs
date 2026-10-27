@@ -1,3 +1,4 @@
+import {debutEvidence} from './debut-evidence.mjs'
 import {raceClass} from './race-class.mjs'
 import {workoutTime} from './environment-features.mjs'
 
@@ -30,5 +31,5 @@ export function maidenEvidence(race,horse,date){
   }
  }
  if(!workouts.length)lines.push(horse.trialEvidence?.some(t=>t.date<date)?'Resmî deneme koşuları ayrı kayıtlıdır; bunlar standart idman ara derecesiyle aynı ölçüm değildir.':'Yakın dönem idman kaydı eksik; bu eksiklik olumsuz idman yapıldığı anlamına gelmez.')
- return {observedStarts:past.length,maidenStarts:maiden.length,maidenSeconds:nearMisses,improving,eligibilityConflict:wins>0,workoutRecords:workouts.length,text:lines.join(' ')}
+ return {debut:debutEvidence(horse,date),observedStarts:past.length,maidenStarts:maiden.length,maidenSeconds:nearMisses,improving,eligibilityConflict:wins>0,workoutRecords:workouts.length,text:lines.join(' ')}
 }

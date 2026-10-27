@@ -13,6 +13,8 @@ export function optimalHundredTicket(races,date,ordinal,{now=new Date().toISOStr
  const price=getBudgetUnitPrice(budgetBetTypes.find(b=>b.id===`${legCount}li-ganyan`),races[0].city),limit=Math.floor(budget/price)
  let states=new Map([[1,{score:1,legs:[]}]])
  for(const race of races){
+  const active=race.horses.filter(h=>!h.outOfRace)
+  if(!active.length||new Set(active.map(h=>h.name)).size!==active.length||new Set(active.map(h=>Number(h.no))).size!==active.length||active.some(h=>!h.name||!Number.isInteger(Number(h.no))||Number(h.no)<1||h.probability==null||h.probability===''||!Number.isFinite(Number(h.probability))||Number(h.probability)<0||Number(h.probability)>100))return null
   const horses=race.horses.filter(h=>!h.outOfRace&&Number.isFinite(Number(h.probability))&&Number(h.probability)>=0).sort((a,b)=>b.probability-a.probability||a.no-b.no)
   const total=horses.reduce((n,h)=>n+Number(h.probability),0);if(!total)return null
   const next=new Map();let mass=0

@@ -753,3 +753,7 @@ MODEL_IYILESTIRME_2026-10-27.md ayrıntılı durum. Sabit piyasa birleşimi göl
 
 ## 27 Ekim — yürüyen kalibrasyon ve sıra adaleti
 506yarışta günlük geçmişten öğrenilen sıcaklık kalibrasyonu Brier/logloss değerlerini kötüleştirdi; devreye alınmadı. Ortak kilit üstüne öncelikli/30dk yaşlandırmalı bekleme kuyruğu eklendi; çocuk sahipliği ve canlı işler korunur. Eski çalışan süreçler kesilmedi. Ayrıntılar MODEL_IYILESTIRME_2026-10-27.md.
+
+
+## 27 Ekim — kupon girdi bütünlüğü ve debut ayrımı
+Eksik/geçersiz puanlı aktif atlar filtrelenip kupon üretilemez; tüm alan ve tekil kimlik gerekiyor. maidenEvidence debut durumunu açık taşır. Ayrıntılı sınıf ailesi raporu eklendi.243test geçti. Jockey-team9280 günlük bakım23928 kilidini bekliyor; bakım training_pedigree aşamasında, geçmiş veri/ikramiye toplama zaman aşımı var. MODEL_IYILESTIRME_2026-10-27.md güncellendi.
