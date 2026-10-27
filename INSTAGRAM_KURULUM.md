@@ -27,3 +27,7 @@ Instagram ganyan_zekasi profesyonel hesabı Facebook Ganyan Zekası Sayfasına b
 ## 27 Ekim — ilk API yayını başarılı
 İlk tanıtım medyaID18065180756716709,permalink https://www.instagram.com/p/DfAc0Z4lKrM/ . API caption ve permalink doğrulandı. Görsel JPEG1080x1350, yalnız marka tanıtım resmi GitHubpublic/social altında sabit commitURL'den200image/jpeg doğrulandı. publish-instagram-introduction.ps1 ayrı Prepare/Publish/Verify modları, dosya kilidi, içerik hashine bağlı yayın günlüğü; belirsiz publish sonucunda kör POST tekrarı engellenir. Bu tek gönderi akışı; günlük kupon scheduler tamamlanmadı.
 Token debug doğrulaması: doğru app/account/scopes, ilk token27Ekim19:00UTC/22:00TR bitecek. extend-instagram-token-local.ps1 App Secretı yalnız gizli yerel alanda alır; uzun tokenı doğrulamadan eskisini değiştirmez, App Secretı kalıcı saklamaz. Kullanıcı girişine ihtiyaç var.
+
+
+## Uzun süreli yetkilendirme doğrulandı
+27Ekim18:02UTC canlı debug_token ve hesap kimliği doğrulaması başarılı. Token bitiş26Aralık2026 17:44:41UTC/20:44:41Türkiye. Şifreli CurrentUser DPAPI kaydı; App Secret kalıcı saklanmadı. Token süresiz değildir; geçerlilik/izin değişimi ve iptal durumları günlük otomasyonda ayrıca kontrol edilmeli. İlk tanıtım gönderisi yayında; günlük kupon yayımlama henüz etkin değil.
