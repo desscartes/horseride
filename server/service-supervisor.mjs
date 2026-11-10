@@ -94,7 +94,8 @@ function runMaintenance() {
   let state = {}
   try { state = JSON.parse(readFileSync(resolve(directory,'state.json'))) } catch {}
   const today = localDay()
-  if (state.completedDay === today || (state.day === today && state.finishedAt && Date.now() - Date.parse(state.finishedAt) < 6 * 3600000) || (lastMaintenanceDay === today && Date.now() - lastMaintenanceStart < 6 * 3600000)) return
+  // Partial source coverage is retried by intraday collection, not by repeating the entire nightly training run.
+  if (state.completedDay === today || (state.day === today && state.finishedAt) || lastMaintenanceDay === today) return
   lastMaintenanceStart = Date.now(); lastMaintenanceDay = today
   worker = launch('server/daily-maintenance.mjs')
   log(`Daily maintenance started PID ${worker.pid}`)

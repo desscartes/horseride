@@ -1,0 +1,1 @@
+export function finalQualityApproved(approval,actual){return approval?.status==='approved'&&approval.videoSha256===actual.videoSha256&&approval.voiceSha256===actual.voiceSha256&&approval.narrationSha256===actual.narrationSha256&&approval.baseline==='fio-rito-visual-v7-native-v6'&&approval.storyReviewed===true&&approval.voiceReviewed===true&&approval.visualReviewed===true;}

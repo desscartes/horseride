@@ -1,3 +1,5 @@
+import{deferForecastRow}from'./forecast-write-spool.mjs'
+import {createProfileReader} from './horse-profile-index.mjs'
 import {racingCountry as historicalCountry} from './foreign-data.mjs'
 import {maintenanceArchiveSummary as summarizeMaintenanceArchive} from './maintenance-archive-summary.mjs'
 import { createHash } from 'node:crypto'
@@ -475,16 +477,8 @@ export function getProgramForAnalysis(date, city, {includeWorkouts=true}={}) {
   return [...racesById.values()]
 }
 
-export function findHorseProfileTables(horseId,source='tjk_horse_history') {
-  if (!horseId) return null
-  const snapshots = database.prepare(`SELECT provider_url AS url, raw_content AS content FROM source_snapshots WHERE source=? AND provider_url LIKE ? ORDER BY fetched_at DESC`).iterate(source,`%QueryParameter_AtId=${String(horseId)}%`)
-  for (const snapshot of snapshots) {
-    try {
-      if (new URL(snapshot.url).searchParams.get('QueryParameter_AtId') === String(horseId)) return JSON.parse(snapshot.content)
-    } catch { continue }
-  }
-  return null
-}
+const indexedProfileReader=createProfileReader(database)
+export function findHorseProfileTables(horseId,source='tjk_horse_history') {return indexedProfileReader(horseId,source)}
 
 export function findDailyAiAnalysis(date, city) {
   const row = database.prepare(`
@@ -527,7 +521,13 @@ export function saveForecastSnapshots({date,races,source,modelVersion,inputHash,
     // captured model/input pair, while allowing a different model to coexist.
     if(database.prepare('SELECT 1 FROM forecast_snapshots WHERE date=? AND city=? AND race_no=? AND source=? AND model_version=? AND input_hash=? LIMIT 1').get(date,race.city,race.no,source,modelVersion,inputHash))continue
     const id=createHash('sha256').update(JSON.stringify([date,race.city,race.no,source,modelVersion,inputHash])).digest('hex')
-    const result=database.prepare(`INSERT OR IGNORE INTO forecast_snapshots VALUES(?,?,?,?,?,?,?,?,?,?)`).run(id,date,race.city,race.no,source,modelVersion,capturedAt,start,inputHash,JSON.stringify(picks))
+    let result
+    try{result=database.prepare(`INSERT OR IGNORE INTO forecast_snapshots VALUES(?,?,?,?,?,?,?,?,?,?)`).run(id,date,race.city,race.no,source,modelVersion,capturedAt,start,inputHash,JSON.stringify(picks))}
+    catch(error){
+      if(process.env.HORSERIDE_FORECAST_SPOOL!=='1'||!(/database is (?:locked|busy)/i.test(error.message)||error.errcode===5))throw error
+      deferForecastRow({id,date,city:race.city,raceNo:race.no,source,modelVersion,capturedAt,start,inputHash,picks,surprise:source==='daily_ai'&&prediction&&Object.hasOwn(prediction,'surprise')?{surprise:prediction.surprise||null}:null})
+      continue
+    }
     if(result.changes&&source==='daily_ai'&&prediction&&Object.hasOwn(prediction,'surprise'))database.prepare('INSERT OR IGNORE INTO forecast_surprises VALUES(?,?)').run(id,JSON.stringify({surprise:prediction.surprise||null}))
     saved+=Number(result.changes)
   }

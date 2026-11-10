@@ -1,6 +1,8 @@
+import{acquireMediaUploadLock}from'./media-upload-lock.mjs'
 import {execFile} from 'node:child_process'
 import {promisify} from 'node:util'
 import {mkdir,readFile,copyFile,writeFile,access} from 'node:fs/promises'
+import {existsSync} from 'node:fs'
 import {createHash} from 'node:crypto'
 import {resolve} from 'node:path'
 const exec=promisify(execFile),repo=resolve('data/instagram/media-repo')
@@ -9,8 +11,11 @@ export async function uploadImages(id,paths){return uploadAssets(id,paths,'jpg')
 export async function uploadVideo(id,path){return (await uploadAssets(id,[path],'mp4'))[0]}
 async function uploadAssets(id,paths,extension){
  if(!/^[a-z0-9-]{1,90}$/.test(id))throw Error('Invalid asset id')
+ const releaseUpload=await acquireMediaUploadLock();try{
+ const gitExecutable=process.env.HORSERIDE_GIT_EXE||'D:/Tools/HorseRideGit/cmd/git.exe'
+ if(!existsSync(gitExecutable))throw Error('HorseRide Git executable unavailable')
  await mkdir(repo,{recursive:true})
- const git=async args=>(await exec('git',['-c','credential.interactive=false',...args],{cwd:repo,windowsHide:true,timeout:45000,env:{...process.env,GIT_TERMINAL_PROMPT:'0'}})).stdout.trim()
+ const git=async args=>(await exec(gitExecutable,['-c','credential.interactive=false',...args],{cwd:repo,windowsHide:true,timeout:45000,env:{...process.env,GIT_TERMINAL_PROMPT:'0'}})).stdout.trim()
  try{await access(repo+'/.git')}catch{await git(['init']);await git(['checkout','--orphan','instagram-media']);await git(['remote','add','origin','https://github.com/desscartes/horseride.git']);try{await git(['fetch','origin','instagram-media']);await git(['reset','--hard','origin/instagram-media'])}catch{}}
  await mkdir(repo+'/public/social',{recursive:true});const files=[]
  for(const [i,path]of paths.entries()){const bytes=await readFile(path),name=id+'-'+(i+1)+'-'+sha(bytes).slice(0,12)+'.'+extension;await copyFile(path,repo+'/public/social/'+name);files.push({name,sha256:sha(bytes),localName:extension==='mp4'?'reel.mp4':'slide-'+(i+1)+'.jpg'})}
@@ -19,6 +24,7 @@ async function uploadAssets(id,paths,extension){
  const commit=await git(['rev-parse','HEAD']);await git(['push','origin','HEAD:refs/heads/instagram-media'])
  for(const file of files){file.url=`https://raw.githubusercontent.com/desscartes/horseride/${commit}/public/social/${file.name}`;const response=await fetch(file.url,{signal:AbortSignal.timeout(20000)});if(!response.ok||sha(Buffer.from(await response.arrayBuffer()))!==file.sha256)throw Error('Public image verification failed')}
  return files
+ }finally{await releaseUpload()}
 }
 export async function publish(id,mode){
  const result=await exec('C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe',['-NoProfile','-ExecutionPolicy','Bypass','-File',resolve('server/publish-instagram-introduction.ps1'),'-PublicationId',id,'-Mode',mode],{windowsHide:true,timeout:120000,maxBuffer:100000})

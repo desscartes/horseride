@@ -1,0 +1,10 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';import {decideQueue} from './video-production-queue.mjs';
+const item=()=>({status:'waiting',episode:'finger-lakes-2007-funny-cide',expectedDirectionHash:'a'.repeat(64),sceneCount:4,motionFrames:49,expiresAt:'2099-01-01',notBefore:'2026-01-01'});
+test('a running native renderer cannot be started twice',()=>assert.equal(decideQueue({item:item(),library:{},production:{episode:item().episode,status:'running'},taskState:'Running'}),'waiting'));
+test('a different active episode is not overwritten',()=>assert.equal(decideQueue({item:item(),library:{},production:{episode:'another',status:'running'},taskState:'Ready'}),'different_episode_active'));
+test('completed target is queued for review, never approved',()=>assert.equal(decideQueue({item:item(),library:{motionDirectionHash:'a'.repeat(64),clips:{a:{},b:{},c:{},d:{}}},taskState:'Ready'}),'rendered_pending_visual_review'));
+test('a completed first pass with old directions may be retaken',()=>assert.equal(decideQueue({item:item(),library:{motionDirectionHash:null},production:{episode:item().episode,status:'rendered_pending_review'},taskState:'Ready'}),'dispatch'));
+test('a failed worker is surfaced rather than retried forever',()=>assert.equal(decideQueue({item:item(),production:{episode:item().episode,status:'failed'},taskState:'Ready'}),'production_failed'));
+test('invalid episode is never passed to the scheduler',()=>assert.equal(decideQueue({item:{...item(),episode:'../../other'},taskState:'Ready'}),'invalid'));
+test('a missing expiry cannot create an unbounded request',()=>assert.equal(decideQueue({item:{...item(),expiresAt:null},taskState:'Ready'}),'invalid'));
+test('published or uncertain media cannot be replaced by a retake',()=>{for(const status of ['published_verified','publishing_unknown'])assert.equal(decideQueue({item:item(),publication:{status},taskState:'Ready'}),'publication_already_exists')});

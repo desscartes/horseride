@@ -1,5 +1,7 @@
 $ErrorActionPreference='Stop'
 Set-Location -LiteralPath 'D:\Apps\HorseRide'
+# PUBLICATION_DELIVERY_WATCHDOG: fixed existing tasks only; no direct publication, no visual auto-approval.
+try { & 'D:\Tools\node-v24.15.0-win-x64\node.exe' 'D:\Apps\HorseRide\server\publication-watchdog.mjs' '--context=public-windows-task' *> 'D:\Apps\HorseRide\data\maintenance\publication-watchdog-public-windows-task.log' } catch { Write-Output 'Publication delivery audit failed; inspect local alarm.' }
 $mutex=New-Object Threading.Mutex($false,'Local\HorseRidePublicWatchdog')
 if(-not $mutex.WaitOne(0)){ $mutex.Dispose();exit 0 }
 try {
@@ -37,7 +39,8 @@ try {
   $meta.tunnelPid=$t.Id;$changes+='tunnel_started'
  }
  $log=Get-Content 'data/maintenance/tunnel-recovery.stderr.log' -Raw -ErrorAction SilentlyContinue
- $candidate=[regex]::Match([string]$log,'https://[a-z0-9-]+\.trycloudflare\.com').Value
+ $candidate=''
+ if(-not [string]::IsNullOrEmpty($log)){$candidate=[regex]::Match($log,'https://[a-z0-9-]+\.trycloudflare\.com').Value}
  $stableUrl='https://ganyan-zekasi.tailab9792.ts.net'
  $stableHealthy=$false
  try{$stableHealth=Invoke-RestMethod ($stableUrl+'/api/health') -TimeoutSec 6;$stableHealthy=[bool]$stableHealth.ok}catch{}

@@ -1,0 +1,13 @@
+import {readFile,writeFile,mkdir} from 'node:fs/promises';
+import {execFile} from 'node:child_process';import {promisify} from 'node:util';
+import {historyStoryPlan} from './history-story-plans.mjs';
+import {withHistoryEntities} from './history-entity-tags.mjs';
+const exec=promisify(execFile),root='data/instagram/native-selfcheck',day='2026-11-04';
+const catalog=JSON.parse((await readFile('data/instagram/history-catalog.json','utf8')).replace(/^\uFEFF/,''));
+const episode=withHistoryEntities(historyStoryPlan(catalog.episodes.find(e=>e.id==='gazi-1928')));
+await mkdir(root,{recursive:true});await writeFile(root+'/episode.json',JSON.stringify(episode));await writeFile(root+'/narration.txt',episode.narration);
+await exec('D:/Apps/HorseRide/.venv/Scripts/python.exe',['server/history-motion-native.py',root,'--day',day],{windowsHide:true,timeout:540000,maxBuffer:20000,env:{...process.env,PYTHONUTF8:'1'}});
+const report=JSON.parse(await readFile(root+'/render-report.json','utf8'));
+if(report.voice.voice!=='tr-TR-EmelNeural'||report.blackFrames!==0||!report.localRender||report.codexRequired!==false)throw Error('Native selfcheck failed');
+await writeFile('data/maintenance/unattended-native-history-selfcheck.json',JSON.stringify({status:'passed',rendererVersion:report.rendererVersion,voice:report.voice,duration:report.duration,sha256:report.sha256,localRender:true,codexRequired:false,checkedAt:new Date().toISOString(),publishing:false},null,2));
+console.log(JSON.stringify({status:'passed',voice:report.voice.voice,duration:report.duration,publishing:false}));

@@ -17,7 +17,7 @@ await writeFile(lock,JSON.stringify({pid:process.pid,day}),{flag:'wx'})
 let report={day,startedAt:new Date().toISOString(),phase:'starting',stages:{},meetings:[],errors:[]}
 try{const old=await json(path);report={...old,phase:'resuming',resumedAt:new Date().toISOString()}}catch{}
 const save=async()=>{await writeFile(path+'.tmp',JSON.stringify(report,null,2));await rename(path+'.tmp',path)}
-const run=(script,args=[],env={})=>new Promise((ok,fail)=>{const child=spawn(process.execPath,['--use-system-ca',script,...args],{windowsHide:true,stdio:'inherit',env:{...process.env,HORSERIDE_MORNING_OWNER:String(process.pid),...env}});child.on('error',fail);child.on('exit',code=>code===0?ok():fail(Error(`${script} exited ${code}`)))})
+const run=(script,args=[],env={},timeoutMs=45*60_000)=>new Promise((ok,fail)=>{const child=spawn(process.execPath,['--use-system-ca',script,...args],{windowsHide:true,stdio:'inherit',env:{...process.env,HORSERIDE_MORNING_OWNER:String(process.pid),...env}});let timedOut=false;const timer=setTimeout(()=>{timedOut=true;child.kill()},timeoutMs);child.on('error',error=>{clearTimeout(timer);fail(error)});child.on('exit',code=>{clearTimeout(timer);timedOut?fail(Error(`${script} timed out after ${Math.round(timeoutMs/60000)} minutes`)):code===0?ok():fail(Error(`${script} exited ${code}`))})})
 const backgroundStages=new Set(['program_maternal_lines','current_pedigree','current_workouts','us_workouts','commentaries','maintenance','training_pedigree','historical_prizes','training','jockey_candidate_comparison','workout_candidate_comparison','training_input_coverage','fluent_commentaries'])
 async function stage(name,action){if(process.env.HORSERIDE_MORNING_FULL!=='1'&&backgroundStages.has(name)){report.stages[name]={status:'scheduled',reason:'Uzun iş hazırlık kilidinde bekletilmez; gün içi veya bağımsız günlük bakım işi yürütür.'};await save();return}if(report.stages[name]?.status==='complete')return;report.phase=name;await save();try{await action();report.stages[name]={status:'complete',finishedAt:new Date().toISOString()}}catch(e){report.stages[name]={status:'failed',error:e.message};report.errors.push(`${name}: ${e.message}`)}await save()}
 const api=async(url,body)=>{const response=await fetch('http://127.0.0.1:8788'+url,{...(body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{}),signal:AbortSignal.timeout(180000)});const data=await response.json();if(!response.ok)throw Error(data.error||`HTTP ${response.status}`);return data}
@@ -25,13 +25,13 @@ try{
  await save()
  await stage('public_access',()=>run('server/check-public-access.mjs'))
  // A live maintenance owner must finish before any collection or training writes.
- await stage('initial_program',()=>run('server/program-refresh.mjs',[day]))
+ await stage('initial_program',()=>run('server/program-refresh.mjs',[day],{HORSERIDE_PROGRAM_ONLY:'1'},25*60_000))
  await stage('jockey_context',()=>run('server/refresh-jockey-context.mjs',[day]))
  await stage('program_maternal_lines',()=>run('server/collect-program-maternal-lines.mjs',[day]))
  await stage('current_pedigree',()=>run('server/collect-tjk-pedigree.mjs',[],{PEDIGREE_COUNTRIES:'TR,US',PEDIGREE_BATCH_SIZE:'200',PEDIGREE_CURRENT_ONLY:'1'}))
  await stage('current_workouts',()=>run('server/collect-current-missing-workouts.mjs'))
  await stage('us_workouts',()=>run('server/collect-equibase-workouts.mjs'))
- await stage('program',()=>run('server/program-refresh.mjs',[day]))
+ await stage('program',()=>run('server/program-refresh.mjs',[day],{HORSERIDE_PROGRAM_ONLY:'1'},25*60_000))
  await stage('workout_usage',()=>run('server/audit-workout-usage.mjs',[day]))
  await stage('coverage',async()=>{await run('server/audit-country-evidence.mjs');const audit=await json(directory+'/country-evidence-audit.json');report.coverage=Object.fromEntries(Object.entries(audit.countries).filter(([,r])=>r.date===day).map(([country,r])=>[country,{runners:r.runners,missing:Object.fromEntries(['damsire','history','workout','ownTimedRun','trackCondition'].map(k=>[k,r.runners-r.counts[k]]))}]));report.dataComplete=Object.values(report.coverage).every(r=>Object.values(r.missing).every(n=>n===0))})
  // Reuse existing forecasts; never delete old predictions to manufacture a better record.

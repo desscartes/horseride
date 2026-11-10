@@ -4,19 +4,23 @@ import {publishCompletedResults} from './instagram-agent-results.mjs'
 import {readFile,writeFile,mkdir,open,unlink,readdir,copyFile,rename} from 'node:fs/promises'
 import {resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
-import {isProcessRunning} from './process-liveness.mjs'
+import {instagramOwnerActive,instagramProcessIdentity} from './instagram-owner.mjs'
 import {localDay} from './maintenance-policy.mjs'
 import {instagramMeetingPlan,instagramMeetingPolicy} from './instagram-meeting-plan.mjs'
 import {renderMeeting,uploadImages,publish,sha,verifyConnection,refreshPublicationReadiness,confirmPublicationProgram,auditPublicationNeeds} from './instagram-agent-io.mjs'
+import {runEditorialAgent} from './instagram-news/agent.mjs'
 process.chdir(fileURLToPath(new URL('../',import.meta.url)))
 const root='data/instagram',lock=root+'/agent.lock',statusPath=root+'/agent-status.json',json=async p=>JSON.parse((await readFile(p,'utf8')).replace(/^\uFEFF/,'')),now=()=>new Date().toISOString(),day=localDay()
 await mkdir(root,{recursive:true})
 let old;try{old=await json(lock)}catch(e){if(e.code!=='ENOENT')throw e}
-if(old){if(isProcessRunning(old.pid)){console.log('Instagram agent already running');process.exit(0)}await unlink(lock)}
-const owned={pid:process.pid,at:now()},handle=await open(lock,'wx');await handle.writeFile(JSON.stringify(owned));await handle.close()
+if(old){if(instagramOwnerActive(old)){console.log('Instagram agent already running');process.exit(0)}await unlink(lock)}
+const owned={pid:process.pid,at:now(),startedAt:instagramProcessIdentity(process.pid)?.start},handle=await open(lock,'wx');await handle.writeFile(JSON.stringify(owned));await handle.close()
 const report={checkedAt:now(),day,mode:'automatic_meeting_publication',published:[],blocked:[],paidAiRequested:false}
 try{
  const config=await json(root+'/agent-config.json');if(config.enabled!==true)throw Error('Instagram agent disabled')
+ if(config.mode==='editorial_news'){
+  await runEditorialAgent({day,report,config})
+ }else if(config.mode==='automatic_meeting_publication'){
  let connection=await json('data/maintenance/instagram-connection.json')
  if(Date.now()-Date.parse(connection.checkedAt)>86400000){await verifyConnection();connection=await json('data/maintenance/instagram-connection.json')}
  if(!connection.valid||connection.account!=='ganyan_zekasi'||!(connection.expiresAtUnix*1000>Date.now()+600000)){report.blocked.push({reason:'reauthorization_required'});throw Error('Instagram credential expired or near expiry')}
@@ -46,5 +50,6 @@ try{
  report.reels=await publishMeetingReels(root,day,videoPlan.drafts);
  report.resultPosts=await publishCompletedResults(root,day)
  report.status=report.published.length?'published':report.blocked.length?'waiting_for_eligible_program':'no_due_meeting'
+ }else throw Error('Unsupported Instagram agent mode')
 }catch(e){report.status='attention_required';report.error=String(e.message).slice(0,200);process.exitCode=1}
 finally{report.finishedAt=now();await writeFile(statusPath,JSON.stringify(report,null,2));try{if((await json(lock)).pid===process.pid)await unlink(lock)}catch{}console.log(JSON.stringify(report))}

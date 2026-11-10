@@ -9,6 +9,7 @@ import {resolve,extname,sep} from 'node:path'
 import {fileURLToPath} from 'node:url'
 import {localDay,shiftDay} from './maintenance-policy.mjs'
 import {jsonTransfer} from './json-transfer.mjs'
+import {readUsageSummary} from './usage-summary.mjs'
 
 const defaultRoot=fileURLToPath(new URL('../dist/',import.meta.url))
 const publicReads=new Set(['/api/simulation','/api/races','/api/meetings','/api/analysis/daily','/api/commentary','/api/social-coupons','/api/history/horse','/api/history/races','/api/performance','/api/application-report','/api/daily-ticket','/api/coupon-showcase','/api/analysis/usage'])
@@ -49,6 +50,10 @@ export function createPublicGateway({upstream='http://127.0.0.1:8788',root=defau
      const parsed=JSON.parse(body)
      url.search=new URLSearchParams({date:String(parsed.date||''),city:String(parsed.city||'')}).toString()
     }else if(req.method!=='GET')return reply(405,{error:'Method not allowed'})
+    if(url.pathname==='/api/analysis/usage'){
+     try{return reply(200,await readUsageSummary())}
+     catch{return reply(503,{error:'Kullanım özeti geçici olarak alınamadı.'})}
+    }
     if(url.pathname==='/api/application-report'){
      const target=new URL(url.pathname,upstream)
      for(const [key,values]of Object.entries({period:['week','total'],scope:['all','domestic','foreign'],source:['numeric','daily_ai']})){

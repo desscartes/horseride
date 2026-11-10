@@ -39,3 +39,14 @@ android/app/src/main/assets/capacitor.config.json
 android/app/src/main/assets/capacitor.plugins.json
 work-weather.mjs
 migration-manifest.json
+
+.voice-venv/
+review-models/
+video-runtime/
+video-tools/
+work/
+*.bak
+*.before-*
+*.2026*.bak
+
+server/history-native/azure-report.json

@@ -13,15 +13,32 @@ function Graph-Write($path,$values){$parts=foreach($key in $values.Keys){[uri]::
 try{
  $lock=[IO.File]::Open($lockPath,[IO.FileMode]::OpenOrCreate,[IO.FileAccess]::ReadWrite,[IO.FileShare]::None)
  $manifest=Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
- if($manifest.id -ne $PublicationId -or $manifest.account -ne 'ganyan_zekasi' -or $manifest.instagramId -ne '17841441483231653' -or $manifest.imageUrl -notmatch '^https://raw\.githubusercontent\.com/desscartes/horseride/[a-f0-9]{40}/public/social/[a-z0-9-]+\.jpg$'){throw 'Invalid fixed introduction manifest'}
+ $dailyScope=$manifest.kind -eq 'daily_race_scope'
+ $scopeBase=$null;$imageAllowed=$manifest.imageUrl -match '^https://raw\.githubusercontent\.com/desscartes/horseride/[a-f0-9]{40}/public/social/[a-z0-9-]+\.jpg$'
+ if($dailyScope){
+  if($manifest.previewOnly){throw 'Layout preview must never be published'}
+  if($manifest.scope -notin @('domestic','foreign') -or $manifest.date -notmatch '^\d{4}-\d{2}-\d{2}$' -or $PublicationId -ne ('daily-scope-'+$manifest.date+'-'+$manifest.scope)){throw 'Invalid daily scope identity'}
+  $scopeBase='https://ganyan-zekasi.tailab9792.ts.net/social/daily-races/'+$manifest.date+'/'+$manifest.scope+'/'
+  $imageAllowed=$manifest.imageUrl -eq ($scopeBase+'slide-1-'+$manifest.imageSha256.Substring(0,12)+'.png')
+ }
+ if($manifest.id -ne $PublicationId -or $manifest.account -ne 'ganyan_zekasi' -or $manifest.instagramId -ne '17841441483231653' -or -not $imageAllowed){throw 'Invalid fixed introduction manifest'}
+ if($Mode -ne 'Verify'){
+  $activeConfig=Get-Content 'D:\Apps\HorseRide\data\instagram\agent-config.json' -Raw -Encoding UTF8|ConvertFrom-Json
+  if($activeConfig.racePublicationMode -eq 'daily_scopes' -and $manifest.kind -in @('race_model_cards','foreign_race_model_cards','foreign_form_archive','archive_observations','evidence_rich_model_comments','meeting','meeting_reel')){throw 'Individual race feed format retired; use one daily domestic and one foreign post'}
+ }
  $isReel=$manifest.mediaType -eq 'REELS'
+ # HISTORY_VOICE_CALENDAR_GUARD: verify date-selected voice before any network publication.
+ if($isReel -and $Mode -ne 'Verify' -and $manifest.kind -eq 'historical_reel'){
+  . 'D:\Apps\HorseRide\server\history-voice-calendar.ps1'
+  $null=Assert-HistoryVoiceCalendar $manifest
+ }
  if($manifest.mediaType -and -not $isReel){throw 'Unsupported media type'}
  if($isReel){
   if($manifest.localVideo -ne 'reel.mp4' -or $manifest.videoUrl -notmatch '^https://raw\.githubusercontent\.com/desscartes/horseride/[a-f0-9]{40}/public/social/[a-z0-9-]+\.mp4$'){throw 'Invalid reel manifest'}
   if((Get-FileHash -LiteralPath (Join-Path $directory 'reel.mp4') -Algorithm SHA256).Hash.ToLowerInvariant() -ne $manifest.videoSha256){throw 'Video hash mismatch'}
  }
  $localImage=if($manifest.localImage){Join-Path $directory $manifest.localImage}else{'D:\Apps\HorseRide\public\social\ganyan-introduction-v1.jpg'}
- if($manifest.localImage -and $manifest.localImage -ne 'image.jpg'){throw 'Invalid local image name'}
+ if($manifest.localImage -and $manifest.localImage -ne $(if($dailyScope){'image.png'}else{'image.jpg'})){throw 'Invalid local image name'}
  if((Get-FileHash -LiteralPath $localImage -Algorithm SHA256).Hash.ToLowerInvariant() -ne $manifest.imageSha256){throw 'Artwork hash mismatch'}
  $manifestHash=(Get-FileHash -LiteralPath $manifestPath -Algorithm SHA256).Hash
  $entry=$null
@@ -47,10 +64,14 @@ try{
   if($isReel){
    $created=Graph-Write ($manifest.instagramId+'/media') @{media_type='REELS';video_url=$manifest.videoUrl;caption=$manifest.caption;share_to_feed='true';thumb_offset='1000'}
   }elseif($manifest.images -and $manifest.images.Count -gt 1){
-   if($manifest.images.Count -gt 3){throw 'Too many slides'}
+   if($manifest.images.Count -gt 10){throw 'Too many slides'}
    $children=@()
    foreach($image in $manifest.images){
-    if($image.localName -notmatch '^slide-[123]\.jpg$' -or $image.url -notmatch '^https://raw\.githubusercontent\.com/desscartes/horseride/[a-f0-9]{40}/public/social/[a-z0-9-]+\.jpg$'){throw 'Invalid slide'}
+    if($dailyScope){
+     if($image.localName -notmatch '^slide-(?:[1-9]|10)\.png$' -or $image.sha256 -notmatch '^[a-f0-9]{64}$'){throw 'Invalid daily scope slide'}
+     $expectedName=$image.localName.Replace('.png','-'+$image.sha256.Substring(0,12)+'.png')
+     if($image.url -ne ($scopeBase+$expectedName)){throw 'Invalid daily scope source URL'}
+    }elseif($image.localName -notmatch '^slide-(?:[1-9]|10)\.jpg$' -or $image.url -notmatch '^https://raw\.githubusercontent\.com/desscartes/horseride/[a-f0-9]{40}/public/social/[a-z0-9-]+\.jpg$'){throw 'Invalid slide'}
     if((Get-FileHash -LiteralPath (Join-Path $directory $image.localName) -Algorithm SHA256).Hash.ToLowerInvariant() -ne $image.sha256){throw 'Slide hash mismatch'}
     $child=Graph-Write ($manifest.instagramId+'/media') @{image_url=$image.url;is_carousel_item='true';alt_text=$manifest.altText}
     $children+=$child.id

@@ -8,10 +8,16 @@ import { existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { resolve } from 'node:path'
 import { localDay, shiftDay, collectionDates, promotionAllowed } from './maintenance-policy.mjs'
+import { nightlyTrainingPlan } from './nightly-training-plan.mjs'
 import {isProcessRunning} from './process-liveness.mjs'
 
 process.chdir(fileURLToPath(new URL('../', import.meta.url)))
 if(remoteDeployment()){console.log('Collection and training are owned by the home server; local run skipped.');process.exit(0)}
+// The supervisor may retry after a partial source day; do not queue a duplicate full training job.
+try {
+  const prior = JSON.parse(await readFile('data/maintenance/state.json', 'utf8'))
+  if (prior.day === localDay() && prior.finishedAt) { console.log('Daily maintenance already finished today; intraday collection owns source retries.'); process.exit(0) }
+} catch (error) { if (error.code !== 'ENOENT') throw error }
 await acquireCollectionGate()
 const directory = 'data/maintenance'
 await mkdir(directory, { recursive: true })
@@ -23,8 +29,8 @@ try {
   await unlink(lock)
 } catch (e) { if (e.code !== 'ENOENT') throw e }
 await writeFile(lock, JSON.stringify({ pid: process.pid }), { flag: 'wx' })
-const today = localDay(), through = shiftDay(today, -1)
-let state = { startedAt: new Date().toISOString(), day: today, through, phase: 'collecting', reports: [], errors: [] }
+const today = localDay(), through = shiftDay(today, -1), researchPlan = nightlyTrainingPlan(today)
+let state = { startedAt: new Date().toISOString(), day: today, through, researchPlan, phase: 'collecting', reports: [], errors: [] }
 try { const previous = JSON.parse(await readFile(`${directory}/state.json`,'utf8')); state.previousCompletedDay = previous.completedDay } catch {}
 async function persist() {
   const temp = `${directory}/state.json.tmp`
@@ -64,6 +70,13 @@ try {
     } catch (error) { state.errors.push(`${date}: ${error.message}`) }
     await persist()
   }
+  // Refresh today's published program while this process owns the collection gate.
+  // Scheduled 02:00/04:00 snapshots may otherwise miss their window behind training.
+  state.phase = 'nightly_current_program'; await persist()
+  try {
+    await run(process.execPath, ['--use-system-ca', 'server/program-refresh.mjs', today], { HORSERIDE_PROGRAM_ONLY: '1' }, 15 * 60_000)
+    state.nightlyProgramRefreshedAt = new Date().toISOString()
+  } catch (error) { state.errors.push(`Nightly program snapshot: ${error.message}`) }
   state.phase = 'enriching'; await persist()
   try{
     const {reportProspective}=await import('./report-prospective.mjs')
@@ -157,11 +170,16 @@ try {
     } catch (error) { state.errors.push(`${country} training: ${error.message}`) }
     await persist()
   }
-  if(config.pedigreeExperimentEnabled){
+  const researchMinutesLeft = () => {
+    const deadline = new Date()
+    deadline.setHours(5, 30, 0, 0)
+    return (deadline.getTime() - Date.now()) / 60_000
+  }
+  if(config.pedigreeExperimentEnabled&&researchPlan.pedigreeExperiment&&researchMinutesLeft()>=45){
     state.phase='training_pedigree';await persist()
     try{await run(process.execPath,['server/run-pedigree-experiment.mjs'],{},45*60_000)}catch(error){state.errors.push(`Pedigree training: ${error.message}`)}
   }
-  if(config.overseasDataExperimentEnabled){
+  if(config.overseasDataExperimentEnabled&&researchPlan.overseasExperiment&&researchMinutesLeft()>=45){
     state.phase='training_overseas_data';await persist()
     try{
       const output=`data/overseas-expansion/${today}/${state.startedAt.replace(/[.:]/g,'-')}`
@@ -170,18 +188,18 @@ try {
     }catch(error){state.errors.push(`Overseas data training: ${error.message}`)}
   }
   // Current program creates genuine pre-start records, never retrospective forecasts.
-  if(config.intelligenceExperimentEnabled){
+  if(config.intelligenceExperimentEnabled&&researchPlan.intelligenceCountry&&researchMinutesLeft()>=90){
     state.phase='training_intelligence';await persist()
     try{
       const output=`data/intelligence-models/${today}/${state.startedAt.replace(/[.:]/g,'-')}`
       try{
-        await run(process.execPath,['--use-system-ca','server/run-intelligence-training.mjs',output],{RACE_PRIZE_REGISTRY_PATH:'data/external/race-prizes/records.json'},120*60_000)
+        await run(process.execPath,['--use-system-ca','server/run-intelligence-training.mjs',output],{RACE_PRIZE_REGISTRY_PATH:'data/external/race-prizes/records.json',INTELLIGENCE_COUNTRIES:researchPlan.intelligenceCountry},75*60_000)
       }catch(error){
         const interrupted=await json(`${output}/training-state.json`).catch(()=>null)
         if(!/timed out/.test(error.message)||!['training','verifying'].includes(interrupted?.phase))throw error
         state.intelligenceResume={root:output,reason:error.message,attemptedAt:new Date().toISOString()};await persist()
         await new Promise(resolve=>setTimeout(resolve,1000))
-        await run(process.execPath,['--use-system-ca','server/resume-intelligence-study.mjs',output],{},60*60_000)
+        await run(process.execPath,['--use-system-ca','server/resume-intelligence-study.mjs',output],{},15*60_000)
       }
       state.intelligenceModels=(await json(`${output}/training-report.json`)).countries.map(r=>({country:r.country,status:r.status,evaluation:r.evaluation,selectiveGate:r.selectiveGate,shadowEnabled:r.shadowEnabled}))
     }catch(error){state.errors.push(`Intelligence training: ${error.message}`)}

@@ -78,6 +78,14 @@ output=replace(output,'children:`AT GEÇMİŞİ`','children:`KAYDEDİLMİŞ TAHM
 output=replace(output,'children:`Önceki yarışlar getiriliyor…`','children:`Kaydedilmiş program ve tahminler getiriliyor…`')
 output=replace(output,'function __raceAlternativeText(race,prediction){const a=','function __raceAlternativeText(race,prediction){if(!race?.horses?.length)return "Program yükleniyor; sürpriz değerlendirmesi henüz yapılamıyor.";const a=')
 output=replace(output,'o&&(0,j.jsxs)(j.Fragment,{children:[(0,j.jsxs)(`p`,{className:`report-note`','o&&(0,j.jsxs)(j.Fragment,{children:[o._delivery&&(0,j.jsx)(`p`,{role:`status`,className:`report-note`,children:`Son başarılı rapor: ${new Date(o._delivery.preparedAt).toLocaleString("tr-TR")}${o._delivery.stale?" · Güncelleme sürüyor; önbellekteki sonuçlar gösteriliyor.":""}`}),(0,j.jsxs)(`p`,{className:`report-note`')
+// A live data summary is temporary. Keep it visible, then refresh it when a
+// complete saved model commentary becomes available without freezing the APK cache.
+output=replace(output,'return!l||l.signature!==s||t()-l.savedAt>864e5?null:','return!l||l.signature!==s||t()-l.savedAt>864e5||__isTransientComment(l.payload)?null:')
+output=replace(output,'if(l?.city!==o||l.date!==s||!l.analysis?.races?.length)return;','if(l?.city!==o||l.date!==s||!l.analysis?.races?.length||__isTransientComment(l))return;')
+output=replace(output,'if(x.source!==`live`||!Qe||!o.length||A||C.status===`loading`)return;','if(x.source!==`live`||!Qe||!o.length||A&&!__isTransientComment(C.payload)||C.status===`loading`)return;')
+output=replace(output,'children:C.status===`loading`?Re:A?`AI yorumu hazır`:','children:C.status===`loading`?Re:A?A.commentaryMethod===`verified_data_summary`?`Veri özeti hazır`:`AI yorumu hazır`:')
+output=replace(output,'children:[`Kaydedilmiş yorum`,C.payload?.createdAt?','children:[A.commentaryMethod===`verified_data_summary`?`Anlık veri özeti`:`Kaydedilmiş yorum`,C.payload?.createdAt?')
+output='function __isTransientComment(payload){return Boolean(payload?.analysis?.partial||payload?.source==="automatic_verified_data_summary"||payload?.analysis?.automaticDataSummaryRaces?.length)}\n'+output
 // Keep uncertain model coverage visible next to the weakest leg.
 output=replace(output,'children:__couponChanceText(r.estimatedChance)}),','children:__couponChanceText(r.estimatedChance)}),r.riskSummary&&(0,j.jsx)(`p`,{className:`coupon-risk`,children:`En kırılgan ayak: ${r.riskSummary.raceNo}. koşu · ${r.riskSummary.selectedRunners} at · hesaplanan kapsam %${(100*r.riskSummary.estimatedCoverage).toFixed(1)}`}),')
 const path=`/assets/index-coupon-v2-${hash(output)}.js`

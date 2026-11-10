@@ -23,14 +23,17 @@ import {attachHttpPerformance} from './http-performance.mjs'
 import {attachOfficialMarketEvidence} from './official-market-evidence.mjs'
 import {waitForAnalysisProgram} from './analysis-program-sync.mjs'
 import {enrichCommentaryRace} from './commentary-evidence.mjs'
+import {preparedOrEmergencyCommentary,supplementCommentary} from './commentary-fallback.mjs'
+import {raceStartISO} from './preparation-readiness.mjs'
 import {jsonTransfer} from './json-transfer.mjs'
 import {analysisUsageLedger} from './analysis-usage.mjs'
+import {readUsageSummary} from './usage-summary.mjs'
 import {requestAnalysis} from './analysis-provider.mjs'
 import {analysisAccessStatus,assertAnalysisAccess,billingCodes} from './analysis-access.mjs'
 import {localDay,shiftDay} from './maintenance-policy.mjs'
 import {runAnalysisWorker} from './analysis-process.mjs'
 import {analysisLog,analysisErrorCode} from './analysis-log.mjs'
-import {localAnalysisEnabled,explanationModel,localAnalysisInput,localAnalysisLedger,localEvidenceAnalysis} from './local-analysis.mjs'
+import {localAnalysisEnabled,explanationModel,localAnalysisInput,localEvidenceAnalysis} from './local-analysis.mjs'
 import {ensureLocalLlm} from './local-llm-service.mjs'
 import {publicAnalysis,analysisError} from '../src/data/analysisLanguage.js'
 import {sixLegOrdinals} from './six-leg-starts.mjs'
@@ -2480,12 +2483,18 @@ export const server = createServer(async (request, response) => {
         const program=(readServedProgram(date)?.races||[]).filter(r=>r.city===city)
         return {date,city,createdAt:result.record.createdAt,cached:result.cached,analysis:publicAnalysis({...result.record.analysis,races:result.record.analysis.races.map(p=>({...p,surprise:validSurprise(program.find(r=>r.city===p.city&&Number(r.no)===Number(p.raceNo)),p)}))})}
       }
+      const program=readServedProgram(date)
+      const fallback=await preparedOrEmergencyCommentary(program,date,city)
+      const completeWithAvailableData=payload=>fallback?supplementCommentary(payload,fallback,program,date,city):payload
       const cached = await restoreSavedAnalysis(date, city)
-      if (cached && (request.method === 'GET' || !cached.analysis.partial || cached.analysis.races.some(r => Number(r.raceNo) === Number(body.raceNo)))) return sendJson(response, 200, toPayload({ record: cached, cached: true }))
+      if (cached && (request.method === 'GET' || !cached.analysis.partial || cached.analysis.races.some(r => Number(r.raceNo) === Number(body.raceNo)))) return sendJson(response, 200, completeWithAvailableData(toPayload({ record: cached, cached: true })))
       assertAnalysisAccess()
-      if (request.method === 'GET') return sendJson(response, 200, { date, city, available: false, job: analysisJobs.getRunning(`${date}:${city}`) })
+      if (request.method === 'GET') return sendJson(response, 200, fallback || { date, city, available: false, job: analysisJobs.getRunning(`${date}:${city}`) })
+      const requestedRace=program?.races?.find(r=>r.city===city&&Number(r.no)===Number(body.raceNo))
+      if(requestedRace&&Date.parse(raceStartISO(requestedRace,date))<=Date.now()&&!cached?.analysis?.races?.some(r=>Number(r.raceNo)===Number(body.raceNo)))return sendJson(response,409,{error:'Bu koşu başladı; yarış öncesinde kaydedilmiş bir yorum bulunmuyor.'})
       if (body.async === true) {
         const job = analysisJobs.start(`${date}:${city}`, async report => toPayload(await getOrCreateDailyAnalysis(date, city, report, Number(body.raceNo) || null)))
+        if(fallback)return sendJson(response,200,{...completeWithAvailableData(cached?toPayload({record:cached,cached:true}):null),job})
         return sendJson(response, 202, { job })
       }
       const result = await getOrCreateDailyAnalysis(date, city)
@@ -2517,7 +2526,10 @@ export const server = createServer(async (request, response) => {
     await new Promise(resolve=>setTimeout(resolve,150))
    }
   }
-  if(requestUrl.pathname==='/api/analysis/usage'&&request.method==='GET')return sendJson(response,200,{...analysisUsageLedger().summary(),provider:localAnalysisEnabled()?'local':'cloud',local:localAnalysisEnabled()?localAnalysisLedger().summary():null})
+  if(requestUrl.pathname==='/api/analysis/usage'&&request.method==='GET'){
+    try{return sendJson(response,200,await readUsageSummary())}
+    catch(error){console.error('Analysis usage summary:',error.message);return sendJson(response,503,{error:'Kullanım özeti geçici olarak alınamadı.'})}
+  }
   if(requestUrl.pathname==='/api/daily-ticket'&&request.method==='GET'){
     const date=requestUrl.searchParams.get('date')||formatDate(new Date()).iso
     if(!/^\d{4}-\d{2}-\d{2}$/.test(date))return sendJson(response,400,{error:'Geçersiz tarih.'})

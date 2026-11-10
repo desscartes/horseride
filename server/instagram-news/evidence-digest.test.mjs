@@ -1,0 +1,10 @@
+import test from'node:test';import assert from'node:assert/strict';import{buildEvidenceDigest,measureRaceEvidence}from'./evidence-digest.mjs';
+const metadata={enabled:true,method:'test',trainedThrough:'2026-10-04',inputs:['normalized_past_speed','pedigree_surface','workouts','official_weather']};
+const horse=no=>({no,name:'At '+no,weight:55,start:no,rankingScore:3-no,lastSix:'123',performanceEvidence:{speedEvidenceCount:4,pedigreeSurfaceStarts:20}});
+const race=no=>({city:'İstanbul',no,time:'15.00',distance:'1400m',surface:'Kum',rankingSource:'local_trained_model',rankingMethod:'test',rankingCountry:'TR',horses:[horse(1),horse(2)],rankingEvidence:{workoutsUsed:true,workoutRunners:2,weatherUsed:true,weatherAvailable:true}});
+const program=()=>({source:'tjk_csv',date:'2026-11-03',fetchedAt:'2026-11-03T08:00:00Z',providerUrls:['https://medya-cdn.tjk.org/2026-11-03-Istanbul.csv'],races:[race(1),race(2)]});
+const opts={now:'2026-11-03T08:10:00Z'};
+test('legacy TR metadata without explicit country supplies measured commentary digest',()=>{const d=buildEvidenceDigest(program(),metadata,opts);assert.equal(d.races.length,2);assert.equal(d.races[0].evidence.coverage,1)});
+test('thin records are not advertised as strong coverage even with high model probability',()=>{const p=program();p.races[0].horses.forEach(h=>{h.performanceEvidence={};h.probability=99});p.races[0].rankingEvidence={};const d=buildEvidenceDigest(p,metadata,opts);assert.equal(d.races.length,1);assert.equal(d.races[0].raceNo,2)});
+test('old source and wrong country model cannot produce a digest',()=>{const p=program();p.fetchedAt='2026-11-02T08:00:00Z';assert.equal(buildEvidenceDigest(p,metadata,opts),null);assert.equal(buildEvidenceDigest(program(),{...metadata,country:'US'},opts),null)});
+test('withdrawn runners and impossible workout counts cannot inflate coverage',()=>{const r=race(1);r.horses[1].outOfRace=true;r.rankingEvidence.workoutRunners=2;const e=measureRaceEvidence(r,metadata);assert.equal(e.runners,1);assert.equal(e.workouts,0)});

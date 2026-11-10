@@ -1,7 +1,12 @@
 export function collectionPlan(day){
  const jobs=[]
  const add=(id,time,script,args=[],env={})=>jobs.push({id:`${day}:${id}`,time,script,args,env})
- for(const hour of [5,7,9,11,13,15,17,19,21,23]){
+ // Overnight program snapshots leave the 06:00 preparation window free.
+ for(const hour of [2,4]){
+  const h=String(hour).padStart(2,'0')
+  add(`program-${h}`,`${h}:00`,'server/program-refresh.mjs',[day],{HORSERIDE_PROGRAM_ONLY:'1'})
+ }
+ for(const hour of [7,9,11,13,15,17,19,21,23]){
   const h=String(hour).padStart(2,'0')
   add(`program-${h}`,`${h}:00`,'server/program-refresh.mjs',[day])
   add(`jockey-${h}`,`${h}:05`,'server/refresh-jockey-context.mjs',[day])
